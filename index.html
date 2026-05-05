@@ -353,6 +353,57 @@
     object-fit: cover; display: block;
   }
 
+  /* Ribbon */
+  .record-ribbon {
+    position: absolute; top: 0.5rem; left: 0;
+    background: var(--gold); color: var(--bg);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem; font-weight: 700;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 0.25rem 0.5rem 0.25rem 0.6rem;
+    border-radius: 0 2px 2px 0;
+    max-width: 85%; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    box-shadow: 1px 1px 4px rgba(0,0,0,0.4);
+    z-index: 2;
+  }
+
+  /* Modal gallery */
+  .modal-gallery {
+    position: relative;
+    background: var(--surface2);
+  }
+  .modal-gallery-track {
+    display: flex;
+    transition: transform 0.3s ease;
+  }
+  .modal-gallery-track img {
+    width: 100%; flex-shrink: 0;
+    aspect-ratio: 1; object-fit: cover; display: block;
+  }
+  .gallery-btn {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(0,0,0,0.6); border: 1px solid var(--gold);
+    color: var(--gold); width: 32px; height: 32px;
+    border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; z-index: 2; transition: background 0.15s;
+  }
+  .gallery-btn:hover { background: rgba(201,148,58,0.3); }
+  .gallery-btn.prev { left: 0.5rem; }
+  .gallery-btn.next { right: 0.5rem; }
+  .gallery-dots {
+    position: absolute; bottom: 0.5rem; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 0.3rem;
+  }
+  .gallery-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(255,255,255,0.4); cursor: pointer;
+    transition: background 0.15s;
+  }
+  .gallery-dot.active { background: var(--gold); }
+
   /* Audio hover button (visible on desktop hover) */
   .audio-hover {
     position: absolute; bottom: 0.5rem; right: 0.5rem;
@@ -916,7 +967,7 @@
     }
 
     .modal-header { display: none; }
-    .modal-img { aspect-ratio: 1; }
+    .modal-gallery { aspect-ratio: 1; }
     .modal-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.85rem; }
     .modal-title { font-size: 1.75rem; margin-bottom: 0; }
     .modal-price { font-size: 2.2rem; }
@@ -1146,7 +1197,14 @@
         BACK
       </button>
     </div>
-    <div class="modal-img"><img id="mImg" src="" alt="" loading="lazy" decoding="async"></div>
+    <div class="modal-gallery" id="modalGallery">
+      <div class="modal-gallery-track" id="galleryTrack">
+        <img id="mImg" src="" alt="" loading="lazy" decoding="async">
+      </div>
+      <button class="gallery-btn prev" id="galleryPrev" onclick="galleryNav(-1)" style="display:none">‹</button>
+      <button class="gallery-btn next" id="galleryNext" onclick="galleryNav(1)" style="display:none">›</button>
+      <div class="gallery-dots" id="galleryDots"></div>
+    </div>
     <div class="modal-body">
       <div>
         <div class="modal-artist" id="mArtist"></div>
@@ -1342,8 +1400,10 @@ async function loadFromSupabase() {
           price:     r.price,
           desc:      r.description || '',
           img:       r.img_url || PLACEHOLDER,
+          imgs:      r.img_urls || (r.img_url ? [r.img_url] : []),
           audio:     r.audio_url || null,
           archive:   r.archive_position || '',
+          ribbon:    r.ribbon || null,
           avail:     r.available,
           dateAdded: new Date(r.date_added),
         });
@@ -1359,9 +1419,11 @@ async function loadFromSupabase() {
 
 // ── RENDER ──
 function cardHTML(r) {
+  const ribbon = r.ribbon ? `<div class="record-ribbon">${r.ribbon}</div>` : '';
   return `<div class="record-card" onclick="openModal(${r.id})">
     <div class="record-cover">
       <img src="${r.img}" alt="${r.title}" loading="lazy" decoding="async" onerror="this.src='${PLACEHOLDER}'">
+      ${ribbon}
       <button class="audio-hover" onclick="event.stopPropagation(); openModal(${r.id})">
         <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
       </button>
@@ -1372,7 +1434,6 @@ function cardHTML(r) {
       <div class="record-footer">
         <div>
           <div class="record-price">€${r.price}</div>
-          <div class="record-sub">${[r.format, r.year, r.cond].filter(Boolean).join(' · ')}</div>
         </div>
         <button class="add-btn" onclick="event.stopPropagation(); addToCart(${r.id})">+</button>
       </div>
@@ -1966,6 +2027,89 @@ function submitContact() {
     document.getElementById('cfSubject').selectedIndex = 0;
   }, 4000);
 }
+
+// ── GALLERY ──
+let _galleryIndex = 0;
+let _galleryImgs = [];
+
+function setupGallery(imgs) {
+  _galleryImgs = imgs && imgs.length ? imgs : [];
+  _galleryIndex = 0;
+  const track = document.getElementById('galleryTrack');
+  const dots  = document.getElementById('galleryDots');
+  const prev  = document.getElementById('galleryPrev');
+  const next  = document.getElementById('galleryNext');
+  if (!track) return;
+
+  if (!_galleryImgs.length) {
+    track.innerHTML = `<img id="mImg" src="${PLACEHOLDER}" alt="" loading="lazy" decoding="async">`;
+    if (dots) dots.innerHTML = '';
+    if (prev) prev.style.display = 'none';
+    if (next) next.style.display = 'none';
+    return;
+  }
+
+  track.innerHTML = _galleryImgs.map((src, i) =>
+    `<img ${i===0?'id="mImg"':''} src="${src}" alt="" loading="${i===0?'eager':'lazy'}" decoding="async" onerror="this.src='${PLACEHOLDER}'">`
+  ).join('');
+  track.style.transform = 'translateX(0)';
+
+  const multiple = _galleryImgs.length > 1;
+  if (prev) prev.style.display = multiple ? 'flex' : 'none';
+  if (next) next.style.display = multiple ? 'flex' : 'none';
+  if (dots) dots.innerHTML = multiple
+    ? _galleryImgs.map((_, i) => `<div class="gallery-dot ${i===0?'active':''}" onclick="galleryGoTo(${i})"></div>`).join('')
+    : '';
+}
+
+function galleryNav(dir) {
+  const n = _galleryImgs.length;
+  if (!n) return;
+  galleryGoTo((_galleryIndex + dir + n) % n);
+}
+
+function galleryGoTo(i) {
+  _galleryIndex = i;
+  const track = document.getElementById('galleryTrack');
+  if (track) track.style.transform = `translateX(-${i * 100}%)`;
+  document.querySelectorAll('.gallery-dot').forEach((d, j) => d.classList.toggle('active', j === i));
+}
+
+// ── MODAL ──
+function openModal(id, opts = {}) {
+  const r = RECORDS.find(x => x.id === id);
+  if (!r) return;
+  currentRecord = r;
+
+  const imgs = r.imgs && r.imgs.length ? r.imgs : (r.img ? [r.img] : []);
+  setupGallery(imgs);
+
+  document.getElementById('mArtist').textContent = r.artist;
+  document.getElementById('mTitle').textContent = r.title;
+  document.getElementById('mPrice').textContent = '€' + r.price;
+  const condEl = document.getElementById('mCond');
+  if (condEl) condEl.textContent = r.ribbon || '';
+  document.getElementById('mDetails').innerHTML = r.desc
+    ? `<div class="modal-desc">${r.desc}</div>` : '';
+  document.getElementById('mCta').textContent = '+ ADD TO CART';
+  stopPlay();
+  setupAudio(r.audio || null);
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  if (!opts.silent) history.pushState(null, '', '#record/' + id);
+  updateSEO({ record: r });
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+  stopPlay();
+  const hash = activeView === 'newin' ? '#' : '#' + activeView;
+  history.replaceState(null, '', hash);
+  updateSEO({ view: activeView });
+}
+function maybeCloseModal(e) { if (e.target === document.getElementById('modal')) closeModal(); }
+function addFromModal() { if (currentRecord?.avail) { addToCart(currentRecord.id); closeModal(); } }
 
 function readHash() {
   const hash = location.hash.replace('#', '').trim();
