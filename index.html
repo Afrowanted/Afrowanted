@@ -3538,8 +3538,11 @@ function startCheckout(method = 'paypal') {
       </div>`).join('');
   }
   const total = cart.reduce((s,r) => s + r.price, 0);
+  const shippingEl = document.getElementById('cartShipping');
+  const shippingText = shippingEl ? shippingEl.textContent.replace('€','').trim() : '0';
+  const shipping = parseFloat(shippingText) || 0;
   const ct = document.getElementById('checkoutTotal');
-  if (ct) ct.textContent = '€' + total.toFixed(2);
+  if (ct) ct.textContent = '€' + (total + shipping).toFixed(2);
   // Mostra PayPal, nascondi Stripe
   document.getElementById('paypalButtonContainer').style.display = 'block';
   document.getElementById('stripePayBtn').style.display = 'none';
@@ -3581,7 +3584,12 @@ function renderPayPalButton() {
 
     createOrder: (data, actions) => {
       if (!validateCheckoutForm()) return Promise.reject('form');
-      const total = cart.reduce((s, r) => s + r.price, 0);
+      const subtotal = cart.reduce((s, r) => s + r.price, 0);
+      // Legge le spese di spedizione già calcolate e mostrate nel checkout
+      const shippingEl = document.getElementById('cartShipping');
+      const shippingText = shippingEl ? shippingEl.textContent.replace('€','').trim() : '0';
+      const shipping = parseFloat(shippingText) || 0;
+      const total = subtotal + shipping;
       return actions.order.create({
         purchase_units: [{
           amount: { value: total.toFixed(2), currency_code: 'EUR' },
