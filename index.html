@@ -1352,14 +1352,36 @@
   .uc-enter:hover { background: #b8832f; }
   .uc-error { font-size: .65rem; color: #ff4d4d; letter-spacing: 1px; min-height: 1rem; margin-top: .75rem; }
 
+  /* ── COOKIE BANNER ── */
+  #cookieBanner{position:fixed;bottom:0;left:0;right:0;z-index:9000;background:#0e0c08;border-top:1px solid var(--border);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+  #cookieBanner.hidden{display:none;}
+  .cookie-text{font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.5px;color:var(--muted);line-height:1.6;flex:1;min-width:200px;}
+  .cookie-text a{color:var(--gold);text-decoration:none;}
+  .cookie-text a:hover{text-decoration:underline;}
+  .cookie-btns{display:flex;gap:.5rem;flex-shrink:0;}
+  .cookie-btn{font-family:'Space Mono',monospace;font-size:.58rem;font-weight:700;letter-spacing:1px;padding:.5rem 1.2rem;border-radius:2px;cursor:pointer;border:none;transition:background .15s;}
+  .cookie-btn.accept{background:var(--gold);color:var(--bg);}
+  .cookie-btn.accept:hover{background:var(--gold-light);}
+  .cookie-btn.reject{background:none;border:1px solid var(--border2);color:var(--muted);}
+  .cookie-btn.reject:hover{color:var(--cream);border-color:var(--cream);}
 </style>
-<!-- Google Analytics 4 -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-E856RG3792"></script>
+<!-- Google Analytics 4 — caricato solo dopo consenso cookie -->
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-E856RG3792');
+  // GA4 disabilitato di default
+  window['ga-disable-G-E856RG3792'] = true;
+
+  function loadGA4() {
+    if (window['ga-disable-G-E856RG3792'] === false) return;
+    window['ga-disable-G-E856RG3792'] = false;
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=G-E856RG3792';
+    document.head.appendChild(s);
+    gtag('js', new Date());
+    gtag('config', 'G-E856RG3792');
+  }
 </script>
 <!-- PayPal SDK Live -->
 <script src="https://www.paypal.com/sdk/js?client-id=ATIjtvSZLs919ep0-IbeFFGnCkzh5-jd__bI0EO7Cl2N5IOWV_hzbu5Rpwym1eLTioZZFy-Bt35aBf5d&currency=EUR&intent=capture&enable-funding=paypal&disable-funding=credit,card" data-sdk-integration-source="button-factory"></script>
@@ -1759,6 +1781,18 @@
     <button class="radio-close-btn" onclick="closeRadio()">×</button>
   </div>
   <audio id="radioAudio"></audio>
+</div>
+
+<!-- COOKIE BANNER -->
+<div id="cookieBanner" class="hidden">
+  <div class="cookie-text">
+    Usiamo cookie tecnici necessari al funzionamento del sito e, con il tuo consenso, cookie analitici (Google Analytics) per migliorare la tua esperienza. 
+    <a href="/cookie-policy.html" target="_blank">Cookie Policy</a> · <a href="/privacy-policy.html" target="_blank">Privacy Policy</a>
+  </div>
+  <div class="cookie-btns">
+    <button class="cookie-btn reject" onclick="cookieChoice(false)">RIFIUTA</button>
+    <button class="cookie-btn accept" onclick="cookieChoice(true)">ACCETTA</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -3441,6 +3475,25 @@ function checkUcPassword() {
 initTheme();
 setLang(currentLang);
 initUnderConstruction();
+
+// ── COOKIE BANNER ──
+function cookieChoice(accepted) {
+  localStorage.setItem('aw_cookie_consent', accepted ? 'accepted' : 'rejected');
+  document.getElementById('cookieBanner').classList.add('hidden');
+  if (accepted) loadGA4();
+}
+
+function initCookieBanner() {
+  const consent = localStorage.getItem('aw_cookie_consent');
+  if (consent === 'accepted') { loadGA4(); return; }
+  if (consent === 'rejected') return;
+  // Nessuna scelta ancora — mostra il banner
+  setTimeout(() => {
+    document.getElementById('cookieBanner').classList.remove('hidden');
+  }, 1000);
+}
+
+initCookieBanner();
 loadShippingData();
 loadFromSupabase();
 
