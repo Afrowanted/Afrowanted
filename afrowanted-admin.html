@@ -1681,10 +1681,11 @@ async function initMessages() {
     }
     container.innerHTML = msgs.map(m => `
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1rem 1.25rem;margin-bottom:.75rem;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
           <div style="font-family:'Space Mono',monospace;font-size:.72rem;color:var(--cream);font-weight:700;">${m.name||'—'} <span style="color:var(--muted);font-weight:normal;">— ${m.email||''}</span></div>
           <div style="font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted);">${m.created_at ? new Date(m.created_at).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''}</div>
         </div>
+        ${m.subject ? `<div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--gold);margin-bottom:.5rem;">${m.subject}</div>` : ''}
         <div style="font-family:'Karla',sans-serif;font-size:.88rem;color:var(--text);line-height:1.6;">${m.message||''}</div>
         <div style="margin-top:.75rem;">
           <a href="mailto:${m.email}" style="font-family:'Space Mono',monospace;font-size:.6rem;color:var(--gold);text-decoration:none;letter-spacing:1px;">↩ REPLY</a>
