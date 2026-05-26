@@ -1352,7 +1352,7 @@ async function renderCatalogue(q='',catFilter='',visFilter='',sortMode='date-des
   const records=_allRecords.map(r=>({
     id:r.id,label:r.label||r.title||r.artist||'',artist:r.artist||'',title:r.title||'',
     cat:(r.cats&&r.cats[0])||'',cats:r.cats||[],
-    price:r.price||0,img:r.img_url||'',
+    price:r.price||0,img:r.img_url||(Array.isArray(r.img_urls)&&r.img_urls[0])||'',
     audio:r.audio_url||null,archive:r.archive_position||'',
     ribbon:r.ribbon||null,avail:r.available!==undefined?r.available:true,
     visible:r.visible||false,dateAdded:r.date_added,
