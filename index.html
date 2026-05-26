@@ -3551,7 +3551,9 @@ async function loadPackagingOptions() {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
     });
     const data = await res.json();
-    _packagingOptions = (data[0]?.value?.options || []).filter(o => o.enabled);
+    // Accetta opzioni con enabled=true, enabled='true', o enabled assente (considera tutte enabled)
+    const allOptions = data[0]?.value?.options || [];
+    _packagingOptions = allOptions.filter(o => o.enabled === true || o.enabled === 'true' || o.enabled === undefined || o.enabled === null);
     _selectedPackaging = {};
     renderPackagingOptions();
   } catch(e) {
@@ -3565,13 +3567,15 @@ function renderPackagingOptions() {
   if (!container || !list) return;
   if (_packagingOptions.length === 0) { container.style.display = 'none'; return; }
   container.style.display = 'block';
-  list.innerHTML = _packagingOptions.map(opt => `
-    <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.4rem 0;">
-      <input type="checkbox" id="pkg-${opt.name}" onchange="togglePackaging('${opt.name}',${opt.price})" style="accent-color:var(--gold);width:14px;height:14px;">
+  list.innerHTML = _packagingOptions.map(opt => {
+    const safeName = opt.name.replace(/'/g, "\'");
+    const price = Number(opt.price) || 0;
+    return `<label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.4rem 0;">
+      <input type="checkbox" id="pkg-${opt.name}" onchange="togglePackaging('${safeName}',${price})" style="accent-color:var(--gold);width:14px;height:14px;">
       <span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--cream);flex:1;">${opt.name}</span>
-      <span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--gold);">+€${Number(opt.price).toFixed(2)}</span>
-    </label>
-  `).join('');
+      <span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--gold);">+€${price.toFixed(2)}</span>
+    </label>`;
+  }).join('');
 }
 
 function togglePackaging(name, price) {
@@ -3621,10 +3625,10 @@ function updateCheckoutTotal() {
   updateCheckoutShipping();
 }
 
-function startCheckout(method = 'paypal') {
+async function startCheckout(method = 'paypal') {
   if (cart.length === 0) { showToast(t('cart_empty')); return; }
-  // Carica packaging options da Supabase
-  loadPackagingOptions();
+  // Carica packaging options da Supabase e attendi che siano pronte
+  await loadPackagingOptions();
   // Precompila email subito in modo sincrono
   if (_currentUser?.email) {
     const el = document.getElementById('cfEmail');
