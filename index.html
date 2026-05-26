@@ -1855,6 +1855,11 @@
           <span style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);">SHIPPING</span>
           <span style="font-family:'Space Mono',monospace;font-size:.68rem;color:var(--muted);" id="checkoutShipping">—</span>
         </div>
+        <!-- Packaging Options -->
+        <div id="checkoutPackagingOptions" style="display:none;margin-bottom:.75rem;border-top:1px solid var(--border);padding-top:.75rem;">
+          <div style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--gold);letter-spacing:1px;margin-bottom:.5rem;">PACKAGING OPTIONS</div>
+          <div id="packagingOptionsList" style="display:flex;flex-direction:column;gap:.4rem;"></div>
+        </div>
         <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:.75rem;">
           <span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--muted);">TOTAL</span>
           <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--gold);" id="checkoutTotal">€0.00</span>
@@ -3535,8 +3540,69 @@ loadFromSupabase();
 const PAYPAL_CLIENT_ID = 'AaR9DplznxHGUZ25EODYyaVN3gpYnyvH5hqMvcTIxkQQ09_CIa2wiJyrDzLwOfZMhIUArWB4NTZbpxKV';
 let _paypalRendered = false;
 
+// ── PACKAGING OPTIONS ──
+let _packagingOptions = [];
+let _selectedPackaging = {};
+
+async function loadPackagingOptions() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.packaging_options&select=value`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    const data = await res.json();
+    _packagingOptions = (data[0]?.value?.options || []).filter(o => o.enabled);
+    _selectedPackaging = {};
+    renderPackagingOptions();
+  } catch(e) {
+    _packagingOptions = [];
+  }
+}
+
+function renderPackagingOptions() {
+  const container = document.getElementById('checkoutPackagingOptions');
+  const list = document.getElementById('packagingOptionsList');
+  if (!container || !list) return;
+  if (_packagingOptions.length === 0) { container.style.display = 'none'; return; }
+  container.style.display = 'block';
+  list.innerHTML = _packagingOptions.map(opt => `
+    <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.4rem 0;">
+      <input type="checkbox" id="pkg-${opt.name}" onchange="togglePackaging('${opt.name}',${opt.price})" style="accent-color:var(--gold);width:14px;height:14px;">
+      <span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--cream);flex:1;">${opt.name}</span>
+      <span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--gold);">+€${Number(opt.price).toFixed(2)}</span>
+    </label>
+  `).join('');
+}
+
+function togglePackaging(name, price) {
+  const cb = document.getElementById('pkg-'+name);
+  if (cb?.checked) { _selectedPackaging[name] = Number(price); }
+  else { delete _selectedPackaging[name]; }
+  updateCheckoutTotal();
+}
+
+function getPackagingTotal() {
+  return Object.values(_selectedPackaging).reduce((s, v) => s + v, 0);
+}
+
+function updateCheckoutTotal() {
+  const subtotal = cart.reduce((s, r) => s + r.price, 0);
+  const shippingEl = document.getElementById('cartShipping');
+  const shippingText = shippingEl ? shippingEl.textContent.replace('€','').trim() : '0';
+  const shipping = parseFloat(shippingText) || 0;
+  const packaging = getPackagingTotal();
+  const total = subtotal + shipping + packaging;
+  const cs = document.getElementById('checkoutSubtotal');
+  const csh = document.getElementById('checkoutShipping');
+  const ct = document.getElementById('checkoutTotal');
+  if (cs) cs.textContent = '€' + subtotal.toFixed(2);
+  if (csh) csh.textContent = shipping > 0 ? '€' + shipping.toFixed(2) : '—';
+  if (ct) ct.textContent = '€' + total.toFixed(2);
+}
+
 function startCheckout(method = 'paypal') {
   if (cart.length === 0) { showToast(t('cart_empty')); return; }
+  // Carica packaging options da Supabase
+  loadPackagingOptions();
   // Precompila email subito in modo sincrono
   if (_currentUser?.email) {
     const el = document.getElementById('cfEmail');
@@ -3636,12 +3702,11 @@ function startCheckout(method = 'paypal') {
   const shippingEl = document.getElementById('cartShipping');
   const shippingText = shippingEl ? shippingEl.textContent.replace('€','').trim() : '0';
   const shipping = parseFloat(shippingText) || 0;
-  const ct = document.getElementById('checkoutTotal');
   const cs = document.getElementById('checkoutSubtotal');
   const csh = document.getElementById('checkoutShipping');
   if (cs) cs.textContent = '€' + subtotal.toFixed(2);
   if (csh) csh.textContent = shipping > 0 ? '€' + shipping.toFixed(2) : '—';
-  if (ct) ct.textContent = '€' + (subtotal + shipping).toFixed(2);
+  updateCheckoutTotal();
   // Mostra PayPal, nascondi Stripe
   document.getElementById('paypalButtonContainer').style.display = 'block';
   document.getElementById('stripePayBtn').style.display = 'none';
@@ -3684,11 +3749,11 @@ function renderPayPalButton() {
     createOrder: (data, actions) => {
       if (!validateCheckoutForm()) return Promise.reject('form');
       const subtotal = cart.reduce((s, r) => s + r.price, 0);
-      // Legge le spese di spedizione già calcolate e mostrate nel checkout
       const shippingEl = document.getElementById('cartShipping');
       const shippingText = shippingEl ? shippingEl.textContent.replace('€','').trim() : '0';
       const shipping = parseFloat(shippingText) || 0;
-      const total = subtotal + shipping;
+      const packaging = getPackagingTotal();
+      const total = subtotal + shipping + packaging;
       return actions.order.create({
         purchase_units: [{
           amount: { value: total.toFixed(2), currency_code: 'EUR' },
@@ -4583,9 +4648,14 @@ async function loadDashboardData() {
       ordEl.innerHTML = ordData.map(o => {
         const date = new Date(o.created_at).toLocaleDateString('it-IT');
         const total = (o.total / 100).toFixed(2);
+        const statusColor = o.status === 'shipped' ? 'var(--gold)' : o.status === 'completed' ? '#4caf50' : 'var(--muted)';
+        const statusLabel = o.status === 'shipped' ? '✈ Spedito' : o.status === 'completed' ? '✓ Completato' : o.status === 'pending' ? '⏳ In attesa' : o.status || '—';
         return `<div class="acc-order">
           <div class="acc-order-id">ORDER #${o.id?.toString().slice(-6).toUpperCase() || '—'} · ${date}</div>
           <div class="acc-order-total">€${total}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:.6rem;color:${statusColor};letter-spacing:1px;">${statusLabel}</div>
+          ${o.tracking_number ? `<div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:.25rem;">TRACKING: <span style="color:var(--cream);">${o.tracking_number}</span></div>` : ''}
+          ${o.tracking_url ? `<a href="${o.tracking_url}" target="_blank" style="font-family:'Space Mono',monospace;font-size:.6rem;color:var(--gold);text-decoration:none;letter-spacing:1px;">→ TRACCIA SPEDIZIONE</a>` : ''}
         </div>`;
       }).join('');
     }

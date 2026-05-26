@@ -381,6 +381,7 @@
     <button class="tab-btn" onclick="showTab('analytics',this)">Analytics</button>
     <button class="tab-btn" onclick="showTab('discounts',this)">Discounts</button>
     <button class="tab-btn" onclick="showTab('shipping',this)">Shipping</button>
+    <button class="tab-btn" onclick="showTab('messages',this)">Messages</button>
     <button class="tab-btn" onclick="showTab('settings',this)">Settings</button>
   </nav>
 
@@ -649,6 +650,14 @@
     </div>
   </div>
 
+  <!-- MESSAGES -->
+  <div class="tab-panel" id="tab-messages">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--cream);letter-spacing:2px;margin-bottom:1.5rem;">Messages</div>
+    <div id="messagesContainer">
+      <div style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--muted);">Loading messages...</div>
+    </div>
+  </div>
+
   <!-- SETTINGS -->
   <div class="tab-panel" id="tab-settings">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--cream);letter-spacing:2px;margin-bottom:1.5rem;">Settings</div>
@@ -863,7 +872,7 @@ async function showAdmin() {
   document.getElementById('adminScreen').classList.add('visible');
   const adminEmailEl = document.getElementById('adminEmail');
   if(adminEmailEl) adminEmailEl.textContent = sessionStorage.getItem('aw_admin_email') || '';
-  initPhotoSlots(); renderCatalogue(); initShipping(); initSettings(); initVacationMode(); initReservationsBadge();
+  initPhotoSlots(); renderCatalogue(); initShipping(); initSettings(); initVacationMode(); initReservationsBadge(); initMessages();
 }
 
 function doLogout(){
@@ -1658,6 +1667,35 @@ function getWeightBand(weightKg) {
 const PACKAGING_DEF=[{id:'double_cardboard',name:'Doppio Cartone',price:0.80,active:true},{id:'plywood',name:'Pannello in Compensato',price:2.00,active:true}];
 let shippingData={};
 
+async function initMessages() {
+  const container = document.getElementById('messagesContainer');
+  if (!container) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/messages?select=*&order=created_at.desc`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + (_authToken || SUPABASE_KEY) }
+    });
+    const msgs = await res.json();
+    if (!msgs || msgs.length === 0) {
+      container.innerHTML = '<div style="font-family:\'Space Mono\',monospace;font-size:.7rem;color:var(--muted);">No messages yet.</div>';
+      return;
+    }
+    container.innerHTML = msgs.map(m => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1rem 1.25rem;margin-bottom:.75rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+          <div style="font-family:'Space Mono',monospace;font-size:.72rem;color:var(--cream);font-weight:700;">${m.name||'—'} <span style="color:var(--muted);font-weight:normal;">— ${m.email||''}</span></div>
+          <div style="font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted);">${m.created_at ? new Date(m.created_at).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''}</div>
+        </div>
+        <div style="font-family:'Karla',sans-serif;font-size:.88rem;color:var(--text);line-height:1.6;">${m.message||''}</div>
+        <div style="margin-top:.75rem;">
+          <a href="mailto:${m.email}" style="font-family:'Space Mono',monospace;font-size:.6rem;color:var(--gold);text-decoration:none;letter-spacing:1px;">↩ REPLY</a>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="font-family:\'Space Mono\',monospace;font-size:.7rem;color:var(--muted);">Error loading messages.</div>';
+  }
+}
+
 async function initShipping(){
   try{
     const res=await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.shipping&select=value`,
@@ -1768,6 +1806,10 @@ async function renderOrders() {
             <div style="font-size:.65rem;color:var(--muted);margin-bottom:.3rem;font-family:'Space Mono',monospace;letter-spacing:1px;">TRACKING NUMBER</div>
             <input type="text" id="tracking-${o.id}" value="${o.tracking_number||''}" placeholder="e.g. IT123456789" style="background:var(--surface3);border:1px solid var(--border);color:var(--cream);font-family:'Space Mono',monospace;font-size:.72rem;padding:.45rem .75rem;border-radius:2px;width:200px;">
           </div>
+          <div>
+            <div style="font-size:.65rem;color:var(--muted);margin-bottom:.3rem;font-family:'Space Mono',monospace;letter-spacing:1px;">LINK CORRIERE</div>
+            <input type="text" id="tracking-url-${o.id}" value="${o.tracking_url||''}" placeholder="https://track.corriere.it/..." style="background:var(--surface3);border:1px solid var(--border);color:var(--cream);font-family:'Space Mono',monospace;font-size:.72rem;padding:.45rem .75rem;border-radius:2px;width:260px;">
+          </div>
           <button class="copy-btn" style="background:var(--gold);color:#000;border:none;" onclick="markShipped(${o.id},'${o.buyer_email||''}','${o.buyer_name||''}')">✈ Mark as Shipped</button>
           <button class="copy-btn" style="background:#c0392b;color:#fff;border:none;" onclick="refundOrder(${o.id},'${o.payment_method||''}','${o.buyer_email||''}')">↩ Refund</button>
         </div>
@@ -1794,13 +1836,14 @@ async function updateOrderStatus(id, status) {
 
 async function markShipped(orderId, buyerEmail, buyerName) {
   const tracking = document.getElementById('tracking-'+orderId)?.value.trim() || '';
+  const trackingUrl = document.getElementById('tracking-url-'+orderId)?.value.trim() || '';
   if (!tracking) { showToast('Please enter a tracking number first', true); return; }
 
-  // Salva tracking e status su Supabase
+  // Salva tracking, tracking_url e status su Supabase
   await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`, {
     method: 'PATCH',
     headers: {'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+(_authToken||SUPABASE_KEY), 'Content-Type': 'application/json'},
-    body: JSON.stringify({ status: 'shipped', tracking_number: tracking })
+    body: JSON.stringify({ status: 'shipped', tracking_number: tracking, tracking_url: trackingUrl })
   });
 
   // Invia email di spedizione al cliente
@@ -1809,7 +1852,7 @@ async function markShipped(orderId, buyerEmail, buyerName) {
       await fetch('/api/send-shipping-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: buyerEmail, name: buyerName, tracking, orderId })
+        body: JSON.stringify({ email: buyerEmail, name: buyerName, tracking, trackingUrl, orderId })
       });
       showToast('✓ Marked as shipped — email sent to ' + buyerEmail);
     } catch(e) {
