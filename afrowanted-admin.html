@@ -1035,8 +1035,8 @@ function showCropPreview(dataUrl, i){
     const sx   = Math.floor((img.width  - size) / 2);
     const sy   = Math.floor((img.height - size) / 2);
 
-    // Dimensione output: 900×900 px (poi compressa a ~500kb)
-    const OUT = 900;
+    // Dimensione output: 1600×1600 px (poi compressa)
+    const OUT = 1600;
     canvas.width  = OUT;
     canvas.height = OUT;
     const ctx = canvas.getContext('2d');
@@ -1057,7 +1057,7 @@ function compressCanvas(canvas, callback){
   let quality = 0.85;
   const tryCompress = () => {
     canvas.toBlob(blob => {
-      if(blob.size > 500*1024 && quality > 0.45){
+      if(blob.size > 600*1024 && quality > 0.45){
         quality -= 0.05;
         tryCompress();
       } else {
