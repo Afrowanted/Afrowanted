@@ -1746,11 +1746,11 @@
       <div class="contacts-form" id="contactForm"><input type="text" style="display:none" name="prevent_autofill"><input type="password" style="display:none" name="prevent_autofill_pw">
         <div class="cf-field">
           <label data-i18n="your_name">Your name</label>
-          <input type="text" id="cfName" placeholder="Name" autocomplete="off">
+          <input type="text" id="cfName" placeholder="Name" autocomplete="new-password" name="contact_sender_x7k" readonly onfocus="this.removeAttribute('readonly')">
         </div>
         <div class="cf-field">
           <label data-i18n="your_email">Your email</label>
-          <input type="email" id="cfContactEmail" placeholder="email@example.com" autocomplete="off">
+          <input type="text" id="cfContactEmail" placeholder="email@example.com" autocomplete="new-password" name="contact_email_x7k" readonly onfocus="this.removeAttribute('readonly')">
         </div>
         <div class="cf-field">
           <label data-i18n="subject">Subject</label>
