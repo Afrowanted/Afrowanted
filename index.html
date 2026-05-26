@@ -1851,10 +1851,11 @@
           <span style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);">SUBTOTAL</span>
           <span style="font-family:'Space Mono',monospace;font-size:.68rem;color:var(--muted);" id="checkoutSubtotal">€0.00</span>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:.5rem;" id="checkoutShippingRow">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.25rem;" id="checkoutShippingRow">
           <span style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);">SHIPPING</span>
           <span style="font-family:'Space Mono',monospace;font-size:.68rem;color:var(--muted);" id="checkoutShipping">—</span>
         </div>
+        <div id="shippingNote" style="font-family:'Space Mono',monospace;font-size:.52rem;color:var(--muted);text-align:right;margin-bottom:.5rem;font-style:italic;">Select country to calculate shipping</div>
         <!-- Packaging Options -->
         <div id="checkoutPackagingOptions" style="display:none;margin-bottom:.75rem;border-top:1px solid var(--border);padding-top:.75rem;">
           <div style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--gold);letter-spacing:1px;margin-bottom:.5rem;">PACKAGING OPTIONS</div>
@@ -1875,7 +1876,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
             <input type="text" id="cfZip" placeholder="ZIP / Postal code *" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Karla',sans-serif;font-size:.9rem;padding:.7rem .85rem;border-radius:2px;outline:none;transition:border-color .15s;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
             <input type="text" id="cfCity" placeholder="City *" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Karla',sans-serif;font-size:.9rem;padding:.7rem .85rem;border-radius:2px;outline:none;transition:border-color .15s;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
-            <select id="cfCountry" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Karla',sans-serif;font-size:.9rem;padding:.7rem .85rem;border-radius:2px;outline:none;transition:border-color .15s;appearance:none;-webkit-appearance:none;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
+            <select id="cfCountry" onchange="updateCheckoutShipping()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Karla',sans-serif;font-size:.9rem;padding:.7rem .85rem;border-radius:2px;outline:none;transition:border-color .15s;appearance:none;-webkit-appearance:none;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
               <option value="">Country *</option>
               <optgroup label="── Euro Zone ──">
                 <option value="Austria">Austria</option>
@@ -3584,19 +3585,40 @@ function getPackagingTotal() {
   return Object.values(_selectedPackaging).reduce((s, v) => s + v, 0);
 }
 
-function updateCheckoutTotal() {
-  const subtotal = cart.reduce((s, r) => s + r.price, 0);
-  const shippingEl = document.getElementById('cartShipping');
-  const shippingText = shippingEl ? shippingEl.textContent.replace('€','').trim() : '0';
-  const shipping = parseFloat(shippingText) || 0;
-  const packaging = getPackagingTotal();
-  const total = subtotal + shipping + packaging;
+function updateCheckoutShipping() {
+  const country = document.getElementById('cfCountry')?.value || _userCountry || null;
   const cs = document.getElementById('checkoutSubtotal');
   const csh = document.getElementById('checkoutShipping');
   const ct = document.getElementById('checkoutTotal');
+  const subtotal = cart.reduce((s, r) => s + r.price, 0);
+  const packaging = getPackagingTotal();
   if (cs) cs.textContent = '€' + subtotal.toFixed(2);
-  if (csh) csh.textContent = shipping > 0 ? '€' + shipping.toFixed(2) : '—';
-  if (ct) ct.textContent = '€' + total.toFixed(2);
+  const noteEl = document.getElementById('shippingNote');
+  if (!country || !_shippingData) {
+    if (csh) { csh.textContent = '—'; csh.style.color = 'var(--muted)'; }
+    if (ct) ct.textContent = '€' + (subtotal + packaging).toFixed(2);
+    if (noteEl) noteEl.style.display = country ? 'none' : 'block';
+    return;
+  }
+  if (noteEl) noteEl.style.display = 'none';
+  const weightKg = calcOrderWeightKg(cart);
+  const shippingCost = getShippingCost(weightKg, country, _shippingData);
+  if (shippingCost !== null) {
+    if (csh) { csh.textContent = '€' + Number(shippingCost).toFixed(2); csh.style.color = 'var(--cream)'; }
+    if (ct) ct.textContent = '€' + (subtotal + Number(shippingCost) + packaging).toFixed(2);
+    // Aggiorna anche il pannello carrello
+    const cartShipEl = document.getElementById('cartShipping');
+    const cartTotalEl = document.getElementById('cartTotal');
+    if (cartShipEl) cartShipEl.textContent = '€' + Number(shippingCost).toFixed(2);
+    if (cartTotalEl) cartTotalEl.textContent = '€' + (subtotal + Number(shippingCost)).toFixed(2);
+  } else {
+    if (csh) { csh.textContent = '—'; csh.style.color = 'var(--muted)'; }
+    if (ct) ct.textContent = '€' + (subtotal + packaging).toFixed(2);
+  }
+}
+
+function updateCheckoutTotal() {
+  updateCheckoutShipping();
 }
 
 function startCheckout(method = 'paypal') {
@@ -3686,6 +3708,7 @@ function startCheckout(method = 'paypal') {
     document.getElementById('checkoutOverlay').style.display = 'block';
     document.body.style.overflow = 'hidden';
     document.getElementById('cartPanel').classList.remove('open');
+    updateCheckoutShipping();
     return;
   }
 
@@ -3698,21 +3721,14 @@ function startCheckout(method = 'paypal') {
         <span style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--gold);flex-shrink:0;margin-left:.5rem;">€${r.price}</span>
       </div>`).join('');
   }
-  const subtotal = cart.reduce((s,r) => s + r.price, 0);
-  const shippingEl = document.getElementById('cartShipping');
-  const shippingText = shippingEl ? shippingEl.textContent.replace('€','').trim() : '0';
-  const shipping = parseFloat(shippingText) || 0;
-  const cs = document.getElementById('checkoutSubtotal');
-  const csh = document.getElementById('checkoutShipping');
-  if (cs) cs.textContent = '€' + subtotal.toFixed(2);
-  if (csh) csh.textContent = shipping > 0 ? '€' + shipping.toFixed(2) : '—';
-  updateCheckoutTotal();
   // Mostra PayPal, nascondi Stripe
   document.getElementById('paypalButtonContainer').style.display = 'block';
   document.getElementById('stripePayBtn').style.display = 'none';
   document.getElementById('checkoutOverlay').style.display = 'block';
   document.body.style.overflow = 'hidden';
   document.getElementById('cartPanel').classList.remove('open');
+  // Aggiorna subtotale e spedizione nel checkout (funziona sia per utenti che guest)
+  updateCheckoutShipping();
   if (!_paypalRendered) renderPayPalButton();
 }
 
@@ -3749,9 +3765,13 @@ function renderPayPalButton() {
     createOrder: (data, actions) => {
       if (!validateCheckoutForm()) return Promise.reject('form');
       const subtotal = cart.reduce((s, r) => s + r.price, 0);
-      const shippingEl = document.getElementById('cartShipping');
-      const shippingText = shippingEl ? shippingEl.textContent.replace('€','').trim() : '0';
-      const shipping = parseFloat(shippingText) || 0;
+      const country = document.getElementById('cfCountry')?.value || _userCountry || null;
+      let shipping = 0;
+      if (country && _shippingData) {
+        const weightKg = calcOrderWeightKg(cart);
+        const sc = getShippingCost(weightKg, country, _shippingData);
+        if (sc !== null) shipping = Number(sc);
+      }
       const packaging = getPackagingTotal();
       const total = subtotal + shipping + packaging;
       return actions.order.create({
@@ -3791,7 +3811,15 @@ async function handleOrderComplete(order) {
   const buyerZip     = document.getElementById('cfZip')?.value.trim() || '';
   const buyerCountry = document.getElementById('cfCountry').value.trim();
   const buyerPhone   = document.getElementById('cfPhone').value.trim();
-  const total        = cart.reduce((s, r) => s + r.price, 0);
+  const subtotal     = cart.reduce((s, r) => s + r.price, 0);
+  let   shippingCostPaid = 0;
+  if (buyerCountry && _shippingData) {
+    const wkg = calcOrderWeightKg(cart);
+    const sc  = getShippingCost(wkg, buyerCountry, _shippingData);
+    if (sc !== null) shippingCostPaid = Number(sc);
+  }
+  const packagingCostPaid = getPackagingTotal();
+  const total = subtotal + shippingCostPaid + packagingCostPaid;
 
   // 1. Salva ordine su Supabase
   const orderData = {
@@ -4939,8 +4967,18 @@ async function handleStripePayment() {
     // Inizializza Stripe
     if (!_stripe) _stripe = Stripe(STRIPE_PK);
 
-    const total = cart.reduce((s, r) => s + r.price, 0);
+    const subtotalStr  = cart.reduce((s, r) => s + r.price, 0);
+    const buyerCountryStr = document.getElementById('cfCountry')?.value?.trim() || _userCountry || null;
+    let   shippingStr  = 0;
+    if (buyerCountryStr && _shippingData) {
+      const wkg = calcOrderWeightKg(cart);
+      const sc  = getShippingCost(wkg, buyerCountryStr, _shippingData);
+      if (sc !== null) shippingStr = Number(sc);
+    }
+    const packagingStr = getPackagingTotal();
+    const total = subtotalStr + shippingStr + packagingStr;
     const buyerEmail = document.getElementById('cfEmail').value.trim();
+    updateCheckoutShipping();
 
     // Crea PaymentIntent tramite Vercel Function
     const res = await fetch('/api/create-payment-intent', {
