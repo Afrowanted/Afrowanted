@@ -2757,6 +2757,7 @@ const LANGS = {
     nav_all:'Highlife — All',
     pay_stripe:'PAY WITH STRIPE', pay_wise:'PAY WITH WISE', pay_paypal:'PAY WITH PAYPAL',
     pkg_double:'Double packaging',
+    track_link:'→ TRACK SHIPMENT',
     pkg_wood:'Wooden panel protection',
     // Account
     acc_title:'MY ACCOUNT', acc_login:'LOGIN', acc_register:'CREATE ACCOUNT',
@@ -2840,6 +2841,7 @@ const LANGS = {
     nav_all:'Highlife — Tutti',
     pay_stripe:'PAY WITH STRIPE', pay_wise:'PAY WITH WISE', pay_paypal:'PAY WITH PAYPAL',
     pkg_double:'Doppio imballaggio',
+    track_link:'→ TRACCIA SPEDIZIONE',
     pkg_wood:'Protezione pannello in compensato',
     // Account
     acc_title:'IL MIO ACCOUNT', acc_login:'ACCEDI', acc_register:'CREA ACCOUNT',
@@ -2922,6 +2924,7 @@ const LANGS = {
     nav_all:'Highlife — Tout',
     pay_stripe:'PAYER AVEC STRIPE', pay_wise:'PAYER AVEC WISE', pay_paypal:'PAYER AVEC PAYPAL',
     pkg_double:'Double emballage',
+    track_link:'→ SUIVRE LA LIVRAISON',
     pkg_wood:'Protection panneau en bois',
     // Account
     acc_title:'MON COMPTE', acc_login:'CONNEXION', acc_register:'CRÉER UN COMPTE',
@@ -3005,6 +3008,7 @@ const LANGS = {
     nav_all:'Highlife — Todo',
     pay_stripe:'PAGAR CON STRIPE', pay_wise:'PAGAR CON WISE', pay_paypal:'PAGAR CON PAYPAL',
     pkg_double:'Doble embalaje',
+    track_link:'→ RASTREAR ENVÍO',
     pkg_wood:'Protección panel de madera',
     // Account
     acc_title:'MI CUENTA', acc_login:'INICIAR SESIÓN', acc_register:'CREAR CUENTA',
@@ -3088,6 +3092,7 @@ const LANGS = {
     nav_all:'Highlife — Alle',
     pay_stripe:'MIT STRIPE BEZAHLEN', pay_wise:'MIT WISE BEZAHLEN', pay_paypal:'MIT PAYPAL BEZAHLEN',
     pkg_double:'Doppelverpackung',
+    track_link:'→ SENDUNG VERFOLGEN',
     pkg_wood:'Schutz durch Sperrholzplatte',
     // Account
     acc_title:'MEIN KONTO', acc_login:'ANMELDEN', acc_register:'KONTO ERSTELLEN',
@@ -3557,7 +3562,7 @@ async function loadPackagingOptions() {
       const data = await res.json();
       packagingData = data[0]?.value?.packaging || null;
     }
-    const nameMap = { double_cardboard: t('pkg_double'), plywood: t('pkg_wood') };
+    const nameMap = { double_cardboard: 'Doppio Cartone', plywood: 'Pannello in Compensato' };
     if (packagingData) {
       _packagingOptions = Object.entries(packagingData)
         .filter(([id, opt]) => opt.active !== false)
@@ -4700,7 +4705,7 @@ async function loadDashboardData() {
           <div class="acc-order-total">€${total}</div>
           <div style="font-family:'Space Mono',monospace;font-size:.6rem;color:${statusColor};letter-spacing:1px;">${statusLabel}</div>
           ${o.tracking_number ? `<div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:.25rem;">TRACKING: <span style="color:var(--cream);">${o.tracking_number}</span></div>` : ''}
-          ${o.tracking_url ? `<a href="${o.tracking_url}" target="_blank" style="font-family:'Space Mono',monospace;font-size:.6rem;color:var(--gold);text-decoration:none;letter-spacing:1px;">→ TRACCIA SPEDIZIONE</a>` : ''}
+          ${o.tracking_url ? `<a href="${o.tracking_url}" target="_blank" style="font-family:'Space Mono',monospace;font-size:.6rem;color:var(--gold);text-decoration:none;letter-spacing:1px;">${t('track_link')}</a>` : ''}
         </div>`;
       }).join('');
     }
