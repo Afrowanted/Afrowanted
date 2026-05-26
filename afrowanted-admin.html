@@ -1101,21 +1101,33 @@ async function uploadSlotToRaspberry(blob, i){
   const statusEl = document.getElementById('slot-status-'+i);
   statusEl.textContent = '↑ Caricamento…'; statusEl.style.display='block';
 
-  // Nome file univoco: timestamp + slot
-  const filename = `aw_${Date.now()}_${i}.jpg`;
+  // Prendi l'ID del disco se già salvato
+  const recordId = document.getElementById('editingId').value || '';
+  const slot = i === 0 ? '0' : String(i);
+
+  const filename = recordId
+    ? (i === 0 ? `${recordId}_main.jpg` : `${recordId}_extra${i}.jpg`)
+    : `temp_${Date.now()}_${i}.jpg`;
+
   const fd = new FormData();
   fd.append('file', blob, filename);
+  if(recordId) fd.append('record_id', recordId);
+  fd.append('slot', slot);
 
   try{
     const res = await fetch(RASPBERRY_UPLOAD_URL, { method:'POST', body:fd });
     const data = await res.json();
     if(data.url){
       _photoUrls[i] = data.url;
+      // Salva filename temporaneo per il rename dopo il salvataggio
+      if(!recordId) {
+        if(!window._tempFiles) window._tempFiles = [null,null,null,null,null];
+        window._tempFiles[i] = data.filename;
+      }
       updatePhotoHiddenFields();
       statusEl.textContent = '✓'; setTimeout(()=>statusEl.style.display='none', 1500);
     } else throw new Error(data.error||'Upload fallito');
   }catch(e){
-    // Modalità offline/sviluppo: salva URL locale temporaneo
     statusEl.textContent = '⚠ Raspberry non raggiungibile';
     setTimeout(()=>statusEl.style.display='none', 3000);
     showToast('Raspberry non raggiungibile — foto in anteprima locale', true);
@@ -1267,9 +1279,28 @@ async function submitRecord(){
     return;
   } else {
     row.date_added=new Date().toISOString();
-    const {error}=await sbInsert(row);
-    if(error) showToast('Error: '+(error.message||JSON.stringify(error)),true);
-    else showToast('✓ Saved: '+row.label);
+    const {data: inserted, error}=await sbInsert(row);
+    if(error){ showToast('Error: '+(error.message||JSON.stringify(error)),true); }
+    else {
+      // Rename foto temporanee con il nuovo ID
+      const newId = inserted && inserted[0] && inserted[0].id;
+      if(newId && window._tempFiles && window._tempFiles.some(f=>f)){
+        try {
+          const renameRes = await fetch('https://images.afrowanted.com/rename', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ record_id: newId, temp_files: window._tempFiles })
+          });
+          const renameData = await renameRes.json();
+          if(renameData.urls){
+            const finalUrls = renameData.urls.filter(u=>u);
+            await sbUpdate(newId, { img_url: finalUrls[0]||null, img_urls: finalUrls });
+          }
+        } catch(e) { console.warn('Rename foto fallito:', e); }
+        window._tempFiles = null;
+      }
+      showToast('✓ Saved: '+row.label);
+    }
   }
   btn.disabled=false;btn.textContent='SAVE RECORD';
   resetForm();
