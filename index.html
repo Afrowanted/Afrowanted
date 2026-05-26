@@ -1446,7 +1446,7 @@
 
   <!-- Desktop inline search -->
   <div class="search-wrap-desktop">
-    <input type="text" placeholder="Search artist, title, country…" oninput="handleSearch(this.value)" id="searchInputDesktop">
+    <input type="text" placeholder="Search artist, title, country…" oninput="handleSearch(this.value)" id="searchInputDesktop" autocomplete="off">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
   </div>
 
@@ -1484,7 +1484,7 @@
 
 <!-- Mobile collapsible search -->
 <div class="search-bar" id="searchBar">
-  <input type="text" placeholder="Search artist, title, country…" oninput="handleSearch(this.value)" id="searchInputMobile">
+  <input type="text" placeholder="Search artist, title, country…" oninput="handleSearch(this.value)" id="searchInputMobile" autocomplete="off">
 </div>
 
 
@@ -1746,11 +1746,11 @@
       <div class="contacts-form" id="contactForm">
         <div class="cf-field">
           <label data-i18n="your_name">Your name</label>
-          <input type="text" id="cfName" placeholder="Name">
+          <input type="text" id="cfName" placeholder="Name" autocomplete="name">
         </div>
         <div class="cf-field">
           <label data-i18n="your_email">Your email</label>
-          <input type="email" id="cfContactEmail" placeholder="email@example.com">
+          <input type="email" id="cfContactEmail" placeholder="email@example.com" autocomplete="email">
         </div>
         <div class="cf-field">
           <label data-i18n="subject">Subject</label>
@@ -2229,9 +2229,12 @@ function setSort(val) { activeSort = val; visibleCount = PAGE_SIZE; render(); }
 
 let _searchTimer;
 function handleSearch(q) {
+  // Ignora se nessun search input ha questo valore (chiamata da altro campo)
+  const searchEls = ['searchInputMobile','searchInputDesktop'].map(id => document.getElementById(id)).filter(Boolean);
+  const calledFromSearch = searchEls.some(el => el === document.activeElement || el.value === q);
+  if (!calledFromSearch && q) return;
   clearTimeout(_searchTimer);
-  ['searchInputMobile','searchInputDesktop'].forEach(id => {
-    const el = document.getElementById(id);
+  searchEls.forEach(el => {
     if (el && el.value !== q) el.value = q;
   });
   _searchTimer = setTimeout(() => {
