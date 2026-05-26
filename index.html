@@ -1743,14 +1743,14 @@
 
       <div class="contacts-form-title" data-i18n="send_message">SEND A MESSAGE</div>
 
-      <div class="contacts-form" id="contactForm">
+      <div class="contacts-form" id="contactForm"><input type="text" style="display:none" name="prevent_autofill"><input type="password" style="display:none" name="prevent_autofill_pw">
         <div class="cf-field">
           <label data-i18n="your_name">Your name</label>
-          <input type="text" id="cfName" placeholder="Name" autocomplete="name">
+          <input type="text" id="cfName" placeholder="Name" autocomplete="off">
         </div>
         <div class="cf-field">
           <label data-i18n="your_email">Your email</label>
-          <input type="email" id="cfContactEmail" placeholder="email@example.com" autocomplete="email">
+          <input type="email" id="cfContactEmail" placeholder="email@example.com" autocomplete="off">
         </div>
         <div class="cf-field">
           <label data-i18n="subject">Subject</label>
@@ -1764,7 +1764,7 @@
         </div>
         <div class="cf-field">
           <label data-i18n="message">Message</label>
-          <textarea id="cfMessage" placeholder="Write your message…"></textarea>
+          <textarea id="cfMessage" autocomplete="off" placeholder="Write your message…"></textarea>
         </div>
         <button class="cf-submit" onclick="submitContact()" data-i18n="send">SEND MESSAGE</button>
       </div>
