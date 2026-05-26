@@ -3557,7 +3557,7 @@ async function loadPackagingOptions() {
       const data = await res.json();
       packagingData = data[0]?.value?.packaging || null;
     }
-    const nameMap = { double_cardboard: 'Doppio Cartone', plywood: 'Pannello in Compensato' };
+    const nameMap = { double_cardboard: t('pkg_double'), plywood: t('pkg_wood') };
     if (packagingData) {
       _packagingOptions = Object.entries(packagingData)
         .filter(([id, opt]) => opt.active !== false)
