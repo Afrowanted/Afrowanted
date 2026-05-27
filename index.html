@@ -4772,23 +4772,28 @@ function confirmDeleteAccount() {
 async function deleteAccount() {
   const token = localStorage.getItem('aw_customer_token');
   try {
-    // Elimina wishlist e profilo (gli ordini restano per storico)
-    await fetch(`${SUPABASE_URL}/rest/v1/wishlist?user_id=eq.${_currentUser.id}`, {
-      method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token }
+    // Chiama l'API server-side che usa la Service Role Key
+    const res = await fetch('/api/delete-account', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      }
     });
-    await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${_currentUser.id}`, {
-      method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token }
-    });
-    // Elimina utente da Supabase Auth
-    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token }
-    });
-  } catch(e) { console.error('Delete account error:', e); }
+    if (!res.ok) {
+      const err = await res.json();
+      console.error('Delete account error:', err);
+      showToast('Error deleting account. Please try again.', true);
+      return;
+    }
+  } catch(e) {
+    console.error('Delete account error:', e);
+    showToast('Error deleting account. Please try again.', true);
+    return;
+  }
   // Logout locale
   localStorage.removeItem('aw_customer_token');
+  localStorage.removeItem('aw_refresh_token');
   _currentUser = null;
   _wishlistIds = new Set();
   updateAccountBtn();
