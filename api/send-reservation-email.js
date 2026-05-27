@@ -117,7 +117,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Afro-Wanted <info@afrowanted.com>',
+        from: 'Afro-Wanted <noreply@afrowanted.com>',
         to: [buyerEmail],
         bcc: ['afrowantedrecords@gmail.com'], // notifica anche a te
         subject: `✓ Record Reserved — ${orderCode} | Afro-Wanted`,
