@@ -96,7 +96,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Afro-Wanted <onboarding@resend.dev>',
+        from: 'Afro-Wanted <noreply@afrowanted.com>',
         to: [buyerEmail],
         subject: `✓ Order Confirmed — Afro-Wanted`,
         html: emailHTML
