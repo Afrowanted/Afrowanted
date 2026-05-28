@@ -2064,8 +2064,8 @@ async function loadFromSupabase() {
           subcats:   r.subcats || [],
           price:     r.price,
           desc:      r.description || '',
-          img:       (r.img_url || '').replace(/^http:\/\//,'https://') || PLACEHOLDER,
-          imgs:      (() => { const all = (r.img_urls || []).filter(Boolean).map(u => u.replace(/^http:\/\//,'https://')); const imgUrl = (r.img_url||'').replace(/^http:\/\//,'https://'); if (imgUrl && !all.includes(imgUrl)) all.unshift(imgUrl); return all.length ? all : (imgUrl ? [imgUrl] : []); })(),
+          img:       (r.img_url || '').replace(/^http:\/\//,'https://').replace(/\?v=\d+/,'') || PLACEHOLDER,
+          imgs:      (() => { const clean = u => u.replace(/^http:\/\//,'https://').replace(/\?v=\d+/,''); const all = (r.img_urls || []).filter(Boolean).map(clean); const imgUrl = clean(r.img_url||''); if (imgUrl && !all.includes(imgUrl)) all.unshift(imgUrl); return all.length ? all : (imgUrl ? [imgUrl] : []); })(),
           audio:     r.audio_url || null,
           archive:   r.archive_position || '',
           ribbon:    r.ribbon || null,
@@ -2093,7 +2093,7 @@ function cardHTML(r) {
   const isWished = _wishlistIds.has(r.id);
   const wishClass = isWished ? ' active' : '';
   const wishIcon = isWished ? '♥' : '♡';
-  return `<div class="record-card" onclick="openModal(${r.id})">
+  return `<div class="record-card" data-id="${r.id}" onclick="openModal(${r.id})">
     <div class="record-cover" style="position:relative;">
       <img src="${r.img}" alt="${r.label}" loading="lazy" decoding="async" onerror="this.src='${PLACEHOLDER}'">
       ${ribbon}
@@ -2521,13 +2521,8 @@ async function loadDiscounts() {
 
 // Aggiorna solo i prezzi nelle card già renderizzate senza ricreare le immagini
 function updatePricesInDOM() {
-  document.querySelectorAll('.record-card').forEach(card => {
-    const addBtn = card.querySelector('.add-btn');
-    if (!addBtn) return;
-    const onclickAttr = addBtn.getAttribute('onclick') || '';
-    const match = onclickAttr.match(/addToCart\((\d+)\)/);
-    if (!match) return;
-    const id = parseInt(match[1]);
+  document.querySelectorAll('.record-card[data-id]').forEach(card => {
+    const id = parseInt(card.dataset.id);
     const r = RECORDS.find(x => x.id === id);
     if (!r) return;
     const priceEl = card.querySelector('.record-price');
