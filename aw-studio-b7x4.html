@@ -658,9 +658,17 @@
     </div>
     <div class="shipping-section">
       <div class="shipping-section-title">Country Exceptions</div>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem;">Tariffe personalizzate per paese specifico — sovrascrivono le zone standard.</p>
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap;">
+        <select id="addExceptionSelect" style="background:var(--surface2);border:1px solid var(--border2);color:var(--cream);font-family:'Space Mono',monospace;font-size:.65rem;padding:.45rem .75rem;border-radius:2px;outline:none;min-width:180px;">
+          <option value="">— Seleziona paese —</option>
+        </select>
+        <button onclick="addExceptionCountry()" style="background:var(--gold);border:none;color:var(--bg);font-family:'Space Mono',monospace;font-size:.62rem;font-weight:700;letter-spacing:1px;padding:.45rem 1rem;border-radius:2px;cursor:pointer;">+ ADD</button>
+        <span style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);">Aggiungi una tariffa speciale per un paese</span>
+      </div>
       <div class="exc-scroll">
         <table class="exception-table">
-          <thead><tr><th>Country</th><th>0–1kg</th><th>1–2kg</th><th>2–3kg</th><th>3–4kg</th><th>4–5kg</th><th>5–7kg</th><th>7–10kg</th><th>10–15kg</th><th>15+kg</th></tr></thead>
+          <thead><tr><th>Country</th><th>0–1kg</th><th>1–2kg</th><th>2–3kg</th><th>3–4kg</th><th>4–5kg</th><th>5–7kg</th><th>7–10kg</th><th>10–15kg</th><th>15+kg</th><th></th></tr></thead>
           <tbody id="exceptionsBody"></tbody>
         </table>
       </div>
@@ -1799,7 +1807,44 @@ function exportCSV(){
 
 // SHIPPING
 const ZONES=['Italia','Europa','Nord America','Resto del mondo'];
-const EXCEPTIONS=['Giappone','Australia','Colombia','Brasile','Svizzera','UK','Cina'];
+// Lista dinamica paesi con eccezioni (caricata da Supabase + default)
+let _exceptionCountries = ['Giappone','Australia','Colombia','Brasile','Svizzera','UK','Cina'];
+
+const ALL_COUNTRIES = ['Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahrain', 'Bangladesh', 'Belarus', 'Belgium', 'Bolivia', 'Bosnia', 'Botswana', 'Brasile', 'Bulgaria', 'Cambodia', 'Cameroon', 'Canada', 'Chile', 'Cina', 'Colombia', 'Congo', 'Corea del Sud', 'Costa Rica', 'Croatia', 'Cuba', 'Czech Republic', 'Denmark', 'Ecuador', 'Egypt', 'Estonia', 'Ethiopia', 'Finland', 'France', 'Georgia', 'Germany', 'Ghana', 'Giappone', 'Greece', 'Guatemala', 'Honduras', 'Hong Kong', 'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy', 'Ivory Coast', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kuwait', 'Latvia', 'Lebanon', 'Lithuania', 'Luxembourg', 'Malaysia', 'Mali', 'Malta', 'Mexico', 'Moldova', 'Mongolia', 'Morocco', 'Mozambique', 'Namibia', 'Netherlands', 'New Zealand', 'Nigeria', 'Norway', 'Pakistan', 'Palestine', 'Panama', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania', 'Russia', 'Rwanda', 'Saudi Arabia', 'Senegal', 'Serbia', 'Singapore', 'Slovakia', 'Slovenia', 'South Africa', 'Spain', 'Sri Lanka', 'Sudan', 'Svizzera', 'Sweden', 'Syria', 'Taiwan', 'Tanzania', 'Thailand', 'Tunisia', 'Turkey', 'UK', 'USA', 'Ukraine', 'United Arab Emirates', 'Uruguay', 'Uzbekistan', 'Venezuela', 'Vietnam', 'Zambia', 'Zimbabwe'];
+
+function populateExceptionSelect() {
+  const sel = document.getElementById('addExceptionSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Seleziona paese —</option>';
+  ALL_COUNTRIES.forEach(c => {
+    if (!_exceptionCountries.includes(c)) {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      sel.appendChild(opt);
+    }
+  });
+}
+
+function addExceptionCountry() {
+  const sel = document.getElementById('addExceptionSelect');
+  const country = sel?.value;
+  if (!country) { showToast('Seleziona un paese', true); return; }
+  if (_exceptionCountries.includes(country)) { showToast('Paese già presente', true); return; }
+  _exceptionCountries.push(country);
+  renderExceptions(window._currentShippingData || {});
+  populateExceptionSelect();
+  showToast('✓ ' + country + ' aggiunto');
+}
+
+function removeExceptionCountry(country) {
+  _exceptionCountries = _exceptionCountries.filter(c => c !== country);
+  renderExceptions(window._currentShippingData || {});
+  populateExceptionSelect();
+  showToast('✓ ' + country + ' rimosso');
+}
+
+const EXCEPTIONS = _exceptionCountries; // compatibilità
 const WEIGHTS=[1,2,3,4,5,7,10,15]; // 1 = fascia 0-1kg
 // Pesi fissi per calcolo spedizione
 const PACKAGING_WEIGHT_G = 300;  // grammi packaging
@@ -1904,8 +1949,18 @@ async function initShipping(){
         ${WEIGHTS.map(w=>`<div class="weight-row"><span class="weight-label">${w===1?'0–1 kg':w+'–'+(w===2?3:w===3?4:w===4?5:w===5?7:w===7?10:w===10?15:'15+')+'kg'}</span><input class="weight-input" type="number" min="0" step="0.5" id="zone_${zone.replace(/\s/g,'_')}_${w}" value="${shippingData?.zones?.[zone]?.[w]||''}" placeholder="€"><span class="weight-unit">€</span></div>`).join('')}
       </div>
     </div>`).join('');
-  document.getElementById('exceptionsBody').innerHTML=EXCEPTIONS.map(c=>`
-    <tr><td><strong>${c}</strong></td>${WEIGHTS.map(w=>`<td><input type="number" min="0" step="0.5" id="exc_${c}_${w}" value="${shippingData?.exceptions?.[c]?.[w]||''}" placeholder="€"></td>`).join('')}</tr>`).join('');
+  // Salva riferimento dati per uso in addExceptionCountry
+  window._currentShippingData = shippingData;
+  // Aggiorna lista paesi da Supabase (aggiunge quelli salvati non presenti nella lista default)
+  const savedExceptions = Object.keys(shippingData?.exceptions || {});
+  savedExceptions.forEach(c => { if (!_exceptionCountries.includes(c)) _exceptionCountries.push(c); });
+  populateExceptionSelect();
+  document.getElementById('exceptionsBody').innerHTML=_exceptionCountries.map(c=>`
+    <tr>
+      <td><strong style="color:var(--cream);">${c}</strong></td>
+      ${WEIGHTS.map(w=>`<td><input type="number" min="0" step="0.5" id="exc_${c}_${w}" value="${shippingData?.exceptions?.[c]?.[w]||''}" placeholder="€"></td>`).join('')}
+      <td><button onclick="removeExceptionCountry('${c}')" style="background:none;border:none;color:var(--red-light);cursor:pointer;font-size:.9rem;" title="Rimuovi">✕</button></td>
+    </tr>`).join('');
   document.getElementById('packagingList').innerHTML=PACKAGING_DEF.map(p=>{
     const sp=shippingData?.packaging?.[p.id];
     return`<div class="packaging-row"><span class="packaging-name">${p.name}</span><div class="packaging-price"><span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--muted);">+€</span><input type="number" min="0" step="0.1" id="pack_price_${p.id}" value="${sp?.price??p.price}"></div><label class="pack-toggle"><input type="checkbox" id="pack_active_${p.id}" ${(sp?.active??p.active)?'checked':''}><span class="pack-slider"></span></label></div>`;
@@ -1914,7 +1969,7 @@ async function initShipping(){
 async function saveShipping(){
   const data={zones:{},exceptions:{},packaging:{}};
   ZONES.forEach(zone=>{data.zones[zone]={};WEIGHTS.forEach(w=>{const v=parseFloat(document.getElementById(`zone_${zone.replace(/\s/g,'_')}_${w}`)?.value||0);if(v)data.zones[zone][w]=v;});});
-  EXCEPTIONS.forEach(c=>{data.exceptions[c]={};WEIGHTS.forEach(w=>{const v=parseFloat(document.getElementById(`exc_${c}_${w}`)?.value||0);if(v)data.exceptions[c][w]=v;});});
+  _exceptionCountries.forEach(c=>{data.exceptions[c]={};WEIGHTS.forEach(w=>{const v=parseFloat(document.getElementById(`exc_${c}_${w}`)?.value||0);if(v)data.exceptions[c][w]=v;});});
   PACKAGING_DEF.forEach(p=>{data.packaging[p.id]={price:parseFloat(document.getElementById(`pack_price_${p.id}`)?.value||0),active:document.getElementById(`pack_active_${p.id}`)?.checked||false};});
   shippingData=data;
   // Salva su Supabase
@@ -2154,7 +2209,36 @@ async function refundOrder(orderId, paymentMethod, buyerEmail) {
 }
 
 function exportOrdersCSV() {
-  showToast('Export orders — coming with PayPal integration');
+  const url = `${SUPABASE_URL}/rest/v1/orders?select=*&order=created_at.desc`;
+  fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + (_authToken || SUPABASE_KEY) } })
+    .then(r => r.json())
+    .then(orders => {
+      if (!orders.length) { showToast('No orders to export', true); return; }
+      const headers = ['ID', 'Data', 'Cliente', 'Email', 'Telefono', 'Indirizzo', 'Totale', 'Stato', 'Metodo pagamento', 'Tracking', 'Tracking URL', 'Record IDs', 'Note'];
+      const rows = orders.map(o => [
+        o.id,
+        o.created_at ? new Date(o.created_at).toLocaleDateString('it-IT') : '',
+        o.buyer_name || '',
+        o.buyer_email || '',
+        o.buyer_phone || '',
+        o.shipping_address || '',
+        o.total || 0,
+        o.status || '',
+        o.payment_method || '',
+        o.tracking_number || '',
+        o.tracking_url || '',
+        (o.record_ids || []).join(';'),
+        o.notes || ''
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `afrowanted-orders-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      showToast(`✓ Exported ${orders.length} orders`);
+    })
+    .catch(e => showToast('Export error: ' + e.message, true));
 }
 
 // ── CUSTOMERS ──
