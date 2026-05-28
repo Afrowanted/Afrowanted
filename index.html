@@ -5055,6 +5055,7 @@ async function handleWisePayment() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         buyerEmail, buyerName, orderCode,
+        userId: _currentUser?.id,
         items: cart.map(r => ({ label: r.label, price: r.price })),
         total: total.toFixed(2),
         expiresAt,
