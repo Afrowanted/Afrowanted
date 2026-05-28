@@ -2442,6 +2442,11 @@ function cardPlayPreview(id) {
 const PACKAGING_WEIGHT_G = 300;
 const LP_WEIGHT_G = 250;
 const SINGLE_WEIGHT_G = 120;
+// Peso aggiuntivo opzioni packaging
+const PACKAGING_OPTION_WEIGHTS_G = {
+  double_cardboard: 250,   // Doppio Cartone +250g
+  plywood: 400             // Pannello in Compensato +400g
+};
 
 function calcOrderWeightKg(cartItems) {
   let totalG = PACKAGING_WEIGHT_G;
@@ -2450,6 +2455,23 @@ function calcOrderWeightKg(cartItems) {
     const is45 = cat.includes('45') || cat.includes('single') || cat.includes('rpm');
     totalG += is45 ? SINGLE_WEIGHT_G : LP_WEIGHT_G;
   });
+  // Aggiungi peso opzioni packaging selezionate
+  if (typeof _selectedPackaging !== 'undefined' && _selectedPackaging) {
+    Object.keys(_selectedPackaging).forEach(name => {
+      if (_selectedPackaging[name]) {
+        // Mappa nome → id per trovare il peso
+        const nameToId = { 'Doppio Cartone': 'double_cardboard', 'Pannello in Compensato': 'plywood',
+          'Double packaging': 'double_cardboard', 'Wooden panel protection': 'plywood',
+          'Double emballage': 'double_cardboard', 'Protection panneau en bois': 'plywood',
+          'Doble embalaje': 'double_cardboard', 'Protección panel de madera': 'plywood',
+          'Doppelverpackung': 'double_cardboard', 'Schutz durch Sperrholzplatte': 'plywood' };
+        const id = nameToId[name];
+        if (id && PACKAGING_OPTION_WEIGHTS_G[id]) {
+          totalG += PACKAGING_OPTION_WEIGHTS_G[id];
+        }
+      }
+    });
+  }
   return totalG / 1000;
 }
 
