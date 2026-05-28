@@ -4968,6 +4968,38 @@ async function handleWisePayment() {
   btn.disabled = true;
   btn.textContent = t('processing');
 
+  // ── CONTROLLI LIMITE PRENOTAZIONI ──
+  try {
+    const userId = _currentUser?.id;
+    if (!userId) { showToast(t('login_for_wise')); btn.disabled = false; btn.textContent = 'RESERVE & PAY BY BANK TRANSFER'; return; }
+
+    const now = new Date().toISOString();
+
+    // 1. Max 5 prenotazioni attive contemporaneamente
+    const activeRes = await fetch(`${SUPABASE_URL}/rest/v1/reservations?user_id=eq.${userId}&status=eq.pending&expires_at=gt.${now}&select=id`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    const activeData = await activeRes.json();
+    if (activeData.length >= 5) {
+      showToast('Max 5 active reservations. Contact us for more.');
+      btn.disabled = false; btn.textContent = 'RESERVE & PAY BY BANK TRANSFER'; return;
+    }
+
+    // 2. Max 1 nuova prenotazione al giorno
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const todayRes = await fetch(`${SUPABASE_URL}/rest/v1/reservations?user_id=eq.${userId}&created_at=gte.${todayStart.toISOString()}&select=id`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    const todayData = await todayRes.json();
+    if (todayData.length >= 1) {
+      showToast('Only 1 bank transfer reservation per day. Try again tomorrow.');
+      btn.disabled = false; btn.textContent = 'RESERVE & PAY BY BANK TRANSFER'; return;
+    }
+  } catch(e) {
+    console.error('Reservation limit check failed:', e);
+  }
+  // ── FINE CONTROLLI ──
+
   const buyerName    = document.getElementById('cfFullName').value.trim();
   const buyerEmail   = document.getElementById('cfEmail').value.trim();
   const buyerAddress = document.getElementById('cfAddress').value.trim();
