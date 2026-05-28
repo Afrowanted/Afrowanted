@@ -2186,6 +2186,7 @@ function loadMore() {
 
 // ── NAVIGATION ──
 function setView(view, opts = {}) {
+  window.scrollTo(0, 0);
   activeView = view;
   searchQ = '';
   visibleCount = PAGE_SIZE;
