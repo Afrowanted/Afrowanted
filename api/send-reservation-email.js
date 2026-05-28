@@ -2,7 +2,7 @@ import { rateLimit } from './_rateLimit.js';
 
 // api/send-reservation-email.js
 // Email conferma prenotazione con dettagli bancari
- 
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -20,53 +20,88 @@ export default async function handler(req, res) {
       message: `Rate limit exceeded. Try again in ${rl.retryAfter} seconds.`
     });
   }
- 
-  const { buyerEmail, buyerName, orderCode, items, total, expiresAt, shippingAddress } = req.body;
- 
+
+  const { buyerEmail, buyerName, orderCode, items, total, expiresAt, shippingAddress, userId } = req.body;
+
   if (!buyerEmail || !orderCode) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
- 
+
+  // ── CONTROLLI LIMITE PRENOTAZIONI (lato server) ──
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+  const authHeaders = {
+    'apikey': SUPABASE_SERVICE_KEY,
+    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+    'Content-Type': 'application/json'
+  };
+
+  const now = new Date().toISOString();
+
+  // 1. Max 5 prenotazioni attive contemporaneamente
+  const activeRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/reservations?user_id=eq.${userId}&status=eq.pending&expires_at=gt.${now}&select=id`,
+    { headers: authHeaders }
+  );
+  const activeData = await activeRes.json();
+  if (activeData.length >= 5) {
+    return res.status(429).json({ error: 'Max 5 active reservations reached. Contact us for more.' });
+  }
+
+  // 2. Max 1 prenotazione al giorno
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const todayRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/reservations?user_id=eq.${userId}&created_at=gte.${todayStart.toISOString()}&select=id`,
+    { headers: authHeaders }
+  );
+  const todayData = await todayRes.json();
+  if (todayData.length >= 1) {
+    return res.status(429).json({ error: 'Only 1 bank transfer reservation per day allowed.' });
+  }
+  // ── FINE CONTROLLI ──
+
   const WISE_IBAN = process.env.WISE_IBAN || '';
   const WISE_NAME = process.env.WISE_NAME || 'Frying Pan Records di Carlotta Fiorio';
- 
+
   const expires = new Date(expiresAt).toLocaleString('it-IT', {
     day: '2-digit', month: 'long', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });
- 
+
   const itemsHTML = (items || []).map(item => `
     <tr>
       <td style="padding:8px 0;border-bottom:1px solid #2a2a2a;color:#f0ebe0;font-size:14px;">${item.label}</td>
       <td style="padding:8px 0;border-bottom:1px solid #2a2a2a;color:#c9943a;font-size:14px;text-align:right;font-family:monospace;">€${item.price}</td>
     </tr>`).join('');
- 
+
   const emailHTML = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#0d0c09;font-family:'Helvetica Neue',Arial,sans-serif;">
   <div style="max-width:520px;margin:0 auto;padding:32px 16px;">
- 
+
     <div style="text-align:center;margin-bottom:32px;">
       <div style="font-size:28px;letter-spacing:4px;color:#f0ebe0;font-weight:900;">AFRO<span style="color:#c9943a;">-</span>WANTED</div>
       <div style="font-size:11px;letter-spacing:3px;color:#888;margin-top:4px;font-family:monospace;">RARE AFRICAN RECORDS</div>
     </div>
- 
+
     <div style="background:#1a1710;border-radius:4px;padding:24px;margin-bottom:24px;border:1px solid #2a2a2a;">
       <div style="font-family:monospace;font-size:11px;color:#c9943a;letter-spacing:2px;margin-bottom:8px;">RESERVATION CONFIRMED</div>
       <div style="font-size:22px;color:#f0ebe0;font-weight:700;margin-bottom:4px;">Record reserved! ✓</div>
       <div style="font-size:13px;color:#888;">Your record is reserved for 48 hours. Complete the bank transfer to confirm your order.</div>
     </div>
- 
-    <!-- Codice ordine -->
+
     <div style="background:#1a1710;border-radius:4px;padding:24px;margin-bottom:24px;border:2px solid #c9943a;text-align:center;">
       <div style="font-family:monospace;font-size:11px;color:#888;letter-spacing:2px;margin-bottom:8px;">YOUR ORDER CODE</div>
       <div style="font-family:monospace;font-size:28px;font-weight:700;color:#c9943a;letter-spacing:4px;">${orderCode}</div>
       <div style="font-size:12px;color:#888;margin-top:8px;">Use this as payment reference / causale del bonifico</div>
     </div>
- 
-    <!-- Articoli -->
+
     <div style="background:#1a1710;border-radius:4px;padding:24px;margin-bottom:24px;border:1px solid #2a2a2a;">
       <div style="font-family:monospace;font-size:11px;color:#c9943a;letter-spacing:2px;margin-bottom:16px;">YOUR ORDER</div>
       <table style="width:100%;border-collapse:collapse;">
@@ -77,8 +112,7 @@ export default async function handler(req, res) {
         </tr>
       </table>
     </div>
- 
-    <!-- Dati bancari -->
+
     <div style="background:#1a1710;border-radius:4px;padding:24px;margin-bottom:24px;border:1px solid #2a2a2a;">
       <div style="font-family:monospace;font-size:11px;color:#c9943a;letter-spacing:2px;margin-bottom:16px;">BANK TRANSFER DETAILS</div>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -100,28 +134,27 @@ export default async function handler(req, res) {
         </tr>
       </table>
     </div>
- 
-    <!-- Scadenza -->
+
     <div style="background:#2a1a10;border-radius:4px;padding:16px;margin-bottom:24px;border:1px solid #8b4513;text-align:center;">
       <div style="font-size:13px;color:#f0ebe0;">⚠️ Reservation expires on <strong style="color:#c9943a;">${expires}</strong></div>
       <div style="font-size:12px;color:#888;margin-top:4px;">If payment is not received by then, the record will become available again.</div>
     </div>
- 
+
     <div style="background:#1a1710;border-radius:4px;padding:16px;border:1px solid #2a2a2a;margin-bottom:24px;">
       <div style="font-size:13px;color:#888;line-height:1.7;text-align:center;">
         Questions? Contact us at<br>
         <a href="mailto:afrowantedrecords@gmail.com" style="color:#c9943a;text-decoration:none;">afrowantedrecords@gmail.com</a>
       </div>
     </div>
- 
+
     <div style="text-align:center;">
       <div style="font-size:11px;color:#444;font-family:monospace;letter-spacing:1px;">© 2026 AFRO-WANTED — ALL RIGHTS RESERVED</div>
     </div>
- 
+
   </div>
 </body>
 </html>`;
- 
+
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -132,12 +165,12 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: 'Afro-Wanted <noreply@afrowanted.com>',
         to: [buyerEmail],
-        bcc: ['afrowantedrecords@gmail.com'], // notifica anche a te
+        bcc: ['afrowantedrecords@gmail.com'],
         subject: `✓ Record Reserved — ${orderCode} | Afro-Wanted`,
         html: emailHTML
       })
     });
- 
+
     const data = await response.json();
     if (response.ok) {
       res.status(200).json({ success: true, id: data.id });
