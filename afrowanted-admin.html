@@ -375,6 +375,42 @@
   }
   @media(min-width:769px){
     .mobile-cat-list,.mobile-cat-grid,.mobile-load-more,.mob-context-menu,.mob-context-overlay{display:none!important;}
+    .mob-orders-list{display:none!important;}
+  }
+  /* Ordini mobile */
+  @media(max-width:768px){
+    #ordersTable{display:none;}
+    .mob-orders-list{display:flex;flex-direction:column;gap:0;}
+    .mob-order-item{padding:.85rem .25rem;border-bottom:1px solid var(--border);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+    .mob-order-item:active{background:var(--surface2);}
+    .mob-order-date{font-family:'Space Mono',monospace;font-size:.5rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:.4rem;}
+    .mob-order-row{display:flex;align-items:center;gap:.75rem;}
+    .mob-order-cover{width:56px;height:56px;object-fit:cover;border-radius:3px;background:var(--surface2);flex-shrink:0;}
+    .mob-order-body{flex:1;min-width:0;}
+    .mob-order-name{font-size:.88rem;color:var(--cream);font-weight:500;margin-bottom:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .mob-order-sub{font-size:.7rem;color:var(--muted);margin-bottom:.3rem;}
+    .mob-order-badges{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;}
+    .mob-order-total{font-family:'Space Mono',monospace;font-size:.78rem;color:var(--cream);font-weight:700;margin-left:auto;flex-shrink:0;}
+    .mob-order-badge{font-family:'Space Mono',monospace;font-size:.45rem;padding:.2rem .45rem;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;}
+    .mob-order-badge.pending{background:rgba(201,148,58,.15);color:var(--gold);border:1px solid rgba(201,148,58,.3);}
+    .mob-order-badge.shipped{background:rgba(39,174,96,.15);color:var(--green-light);border:1px solid rgba(39,174,96,.3);}
+    .mob-order-badge.delivered{background:rgba(39,174,96,.3);color:var(--green-light);}
+    .mob-order-badge.refunded{background:rgba(192,57,43,.15);color:var(--red-light);border:1px solid rgba(192,57,43,.3);}
+    /* Dettaglio ordine mobile */
+    .mob-order-detail{display:none;background:var(--surface2);border-radius:4px;padding:.85rem;margin-top:.6rem;}
+    .mob-order-detail.open{display:block;}
+    .mob-order-detail-section{font-family:'Space Mono',monospace;font-size:.52rem;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin:.75rem 0 .35rem;}
+    .mob-order-detail-section:first-child{margin-top:0;}
+    .mob-order-rec{font-size:.78rem;color:var(--cream);padding:.3rem 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;}
+    .mob-order-shipping-block{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--cream);line-height:1.8;background:var(--surface3);padding:.65rem .75rem;border-radius:3px;white-space:pre-wrap;margin-bottom:.5rem;}
+    .mob-order-input-label{font-family:'Space Mono',monospace;font-size:.52rem;color:var(--muted);letter-spacing:1px;margin-bottom:.25rem;}
+    .mob-order-input{width:100%;background:var(--surface3);border:1px solid var(--border);color:var(--cream);font-family:'Space Mono',monospace;font-size:.72rem;padding:.5rem .65rem;border-radius:3px;margin-bottom:.6rem;outline:none;}
+    .mob-order-input:focus{border-color:var(--gold);}
+    .mob-order-select{width:100%;background:var(--surface3);border:1px solid var(--border);color:var(--cream);font-family:'Space Mono',monospace;font-size:.72rem;padding:.5rem .65rem;border-radius:3px;margin-bottom:.6rem;outline:none;}
+    .mob-order-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;}
+    .mob-order-btn{flex:1;min-width:120px;background:var(--gold);border:none;color:#000;font-family:'Space Mono',monospace;font-size:.6rem;font-weight:700;letter-spacing:1px;padding:.65rem .5rem;border-radius:3px;cursor:pointer;text-align:center;}
+    .mob-order-btn.danger{background:#c0392b;color:#fff;}
+    .mob-order-btn.copy{background:var(--surface3);color:var(--cream);border:1px solid var(--border);}
   }
 
   /* SETTINGS */
@@ -657,6 +693,9 @@
         <button class="export-btn" onclick="exportOrdersCSV()">↓ Export CSV</button>
       </div>
     </div>
+    <!-- Lista ordini mobile -->
+    <div class="mob-orders-list" id="mobOrdersList"></div>
+
     <table class="records-table" id="ordersTable">
       <thead><tr>
         <th>Date</th><th>Customer</th><th>Records</th><th>Total</th><th>Status</th><th>Actions</th>
@@ -1905,7 +1944,7 @@ async function renderOrders() {
     const name = o.buyer_name || o.buyer_email || '—';
     const total = '€' + ((o.total||0)/100).toFixed(2);
     const statusClass = o.status==='shipped'?'shipped':o.status==='delivered'?'delivered':o.status==='refunded'?'refunded':'pending';
-    const shippingBlock = [o.buyer_name, o.shipping_address, o.buyer_phone, o.buyer_email].filter(Boolean).join('\n');
+    const shippingBlock = [o.buyer_name, o.shipping_address, o.buyer_phone, o.buyer_email].filter(Boolean).join('\\n');
     return `
     <tr>
       <td><span class="tbl-meta">${date}</span></td>
@@ -1961,6 +2000,81 @@ async function renderOrders() {
       </td>
     </tr>`;
   }).join('');
+  // Render lista mobile
+  renderMobileOrders(orders);
+}
+
+function renderMobileOrders(orders) {
+  const list = document.getElementById('mobOrdersList');
+  if (!list || window.innerWidth > 768) { if(list) list.innerHTML=''; return; }
+  if (!orders.length) { list.innerHTML='<div style="color:var(--muted);font-size:.8rem;padding:2rem 0;text-align:center;">No orders yet.</div>'; return; }
+
+  // Raggruppa per data
+  let lastDate = '';
+  list.innerHTML = orders.map(o => {
+    const date = new Date(o.created_at).toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'}).toUpperCase();
+    const dateHeader = date !== lastDate ? `<div class="mob-order-date">${date}</div>` : '';
+    lastDate = date;
+    const name = o.buyer_name || o.buyer_email || '—';
+    const total = '€' + Number(o.total||0).toFixed(2);
+    const numRec = (o.record_ids||[]).length;
+    const statusClass = o.status==='shipped'?'shipped':o.status==='delivered'?'delivered':o.status==='refunded'?'refunded':'pending';
+    const statusLabel = o.status==='shipped'?'Spedito':o.status==='delivered'?'Consegnato':o.status==='refunded'?'Rimborsato':'In attesa';
+    // Prima foto dal primo record
+    const firstRec = _allRecords.find(r => r.id == (o.record_ids||[])[0]);
+    const coverUrl = firstRec?.img_url || firstRec?.img || '';
+    // Blocco spedizione
+    const shippingBlock = [o.buyer_name, o.shipping_address, o.buyer_phone, o.buyer_email].filter(Boolean).join(' | ');
+    // Dischi ordinati
+    const recList = (o.record_ids||[]).map(rid => {
+      const rec = _allRecords.find(r => r.id == rid);
+      return rec ? `<div class="mob-order-rec"><span>${rec.artist||''} — ${rec.title||''} ${rec.archive_position?'['+rec.archive_position+']':''}</span><span style="color:var(--gold);">€${rec.price||0}</span></div>` : `<div class="mob-order-rec"><span style="color:var(--muted);">ID: ${rid}</span></div>`;
+    }).join('');
+
+    return `${dateHeader}
+    <div class="mob-order-item" id="mob-order-item-${o.id}">
+      <div class="mob-order-row" onclick="toggleMobOrderDetail(${o.id})">
+        <img class="mob-order-cover" src="${coverUrl}" onerror="this.style.background='var(--surface3)'" alt="">
+        <div class="mob-order-body">
+          <div class="mob-order-name">${name}</div>
+          <div class="mob-order-sub">${numRec} disco${numRec!==1?'hi':''}</div>
+          <div class="mob-order-badges">
+            <span class="mob-order-badge ${statusClass}">${statusLabel}</span>
+          </div>
+        </div>
+        <div class="mob-order-total">${total}</div>
+      </div>
+      <div class="mob-order-detail" id="mob-order-detail-${o.id}">
+        <div class="mob-order-detail-section">Dischi ordinati</div>
+        ${recList}
+        <div class="mob-order-detail-section">Indirizzo spedizione</div>
+        <div class="mob-order-shipping-block">${shippingBlock||'—'}</div>
+        <button class="mob-order-btn copy" onclick="copyShipping(${o.id})" style="width:100%;margin-bottom:.6rem;">📋 Copia indirizzo</button>
+        <div class="mob-order-detail-section">Tracking</div>
+        <div class="mob-order-input-label">NUMERO TRACKING</div>
+        <input class="mob-order-input" type="text" id="tracking-${o.id}" value="${o.tracking_number||''}" placeholder="es. IT123456789">
+        <div class="mob-order-input-label">LINK CORRIERE</div>
+        <input class="mob-order-input" type="text" id="tracking-url-${o.id}" value="${o.tracking_url||''}" placeholder="https://track.corriere.it/...">
+        <div class="mob-order-detail-section">Stato ordine</div>
+        <select class="mob-order-select" onchange="updateOrderStatus(${o.id},this.value)">
+          <option value="pending" ${o.status==='pending'?'selected':''}>In attesa</option>
+          <option value="shipped" ${o.status==='shipped'?'selected':''}>Spedito</option>
+          <option value="delivered" ${o.status==='delivered'?'selected':''}>Consegnato</option>
+          <option value="refunded" ${o.status==='refunded'?'selected':''}>Rimborsato</option>
+        </select>
+        <div class="mob-order-actions">
+          <button class="mob-order-btn" onclick="markShipped(${o.id},'${o.buyer_email||''}','${o.buyer_name||''}')">✈ Segna Spedito</button>
+          <button class="mob-order-btn danger" onclick="refundOrder(${o.id},'${o.payment_method||''}','${o.buyer_email||''}')">↩ Rimborsa</button>
+        </div>
+        ${o.notes?`<div style="margin-top:.6rem;font-size:.75rem;color:var(--muted);">Note: ${o.notes}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMobOrderDetail(id) {
+  const detail = document.getElementById('mob-order-detail-'+id);
+  if (detail) detail.classList.toggle('open');
 }
 
 function toggleOrderDetail(id) {
