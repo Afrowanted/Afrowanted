@@ -3796,6 +3796,7 @@ function startCheckout(method = 'paypal') {
         if (p.country) {
           document.getElementById('cfCountry').value = p.country;
           updateCartShipping();
+          updateCheckoutShipping();
         }
       }
     }).catch(() => {});
