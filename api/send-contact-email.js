@@ -1,4 +1,17 @@
+import { rateLimit } from './_rateLimit.js';
+
 export default async function handler(req, res) {
+  // Rate limiting: max 5 richieste al minuto per IP
+  const rl = rateLimit(req, { max: 5, windowMs: 60000 });
+  Object.entries(rl.headers).forEach(([k,v]) => res.setHeader(k, v));
+  if (!rl.ok) {
+    return res.status(429).json({
+      error: 'Too many requests',
+      retryAfter: rl.retryAfter,
+      message: `Rate limit exceeded. Try again in ${rl.retryAfter} seconds.`
+    });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

@@ -1,3 +1,5 @@
+import { rateLimit } from './_rateLimit.js';
+
 // api/send-reservation-email.js
 // Email conferma prenotazione con dettagli bancari
  
@@ -7,6 +9,17 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Rate limiting: max 10 richieste al minuto per IP
+  const rl = rateLimit(req, { max: 10, windowMs: 60000 });
+  Object.entries(rl.headers).forEach(([k,v]) => res.setHeader(k, v));
+  if (!rl.ok) {
+    return res.status(429).json({
+      error: 'Too many requests',
+      retryAfter: rl.retryAfter,
+      message: `Rate limit exceeded. Try again in ${rl.retryAfter} seconds.`
+    });
+  }
  
   const { buyerEmail, buyerName, orderCode, items, total, expiresAt, shippingAddress } = req.body;
  

@@ -1,8 +1,21 @@
+import { rateLimit } from './_rateLimit.js';
+
 // api/delete-account.js
 // Cancella un utente da Supabase Auth usando la Service Role Key
 // Richiede: Authorization header con il JWT dell'utente (per verificare identità)
 
 export default async function handler(req, res) {
+  // Rate limiting: max 3 richieste al minuto per IP
+  const rl = rateLimit(req, { max: 3, windowMs: 60000 });
+  Object.entries(rl.headers).forEach(([k,v]) => res.setHeader(k, v));
+  if (!rl.ok) {
+    return res.status(429).json({
+      error: 'Too many requests',
+      retryAfter: rl.retryAfter,
+      message: `Rate limit exceeded. Try again in ${rl.retryAfter} seconds.`
+    });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
