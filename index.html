@@ -2103,7 +2103,7 @@ function cardHTML(r) {
       <div class="record-title" style="font-size:0.78rem;line-height:1.35;">${r.label}</div>
       <div class="record-footer">
         <div>
-          <div class="record-price">€${r.price}</div>
+          <div class="record-price">${(()=>{ const dp=getDiscountedPrice(r); return dp < r.price ? `<span style="text-decoration:line-through;color:var(--muted);font-size:.7em;margin-right:.3em;">€${r.price}</span><span style="color:#e8b84b;">€${dp}</span>` : `€${r.price}`; })()}</div>
         </div>
         <div class="record-footer-btns">
           <button class="card-play-btn${noAudio}" title="${playTitle}"
@@ -2280,7 +2280,10 @@ function openModal(id, opts = {}) {
   setupGallery(imgs);
 
   document.getElementById('mTitle').textContent = r.label;
-  document.getElementById('mPrice').textContent = '€' + r.price;
+  const dp = getDiscountedPrice(r);
+  document.getElementById('mPrice').innerHTML = dp < r.price
+    ? `<span style="text-decoration:line-through;color:var(--muted);font-size:.85em;margin-right:.4em;">€${r.price}</span><span style="color:#e8b84b;">€${dp}</span>`
+    : '€' + r.price;
 
   const ribbonEl = document.getElementById('mRibbon');
   if (ribbonEl) {
@@ -2497,6 +2500,37 @@ function getShippingCost(weightKg, country, shippingData) {
 }
 
 let _shippingData = null;
+let _discountData = {};
+
+async function loadDiscounts() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.discounts&select=value`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    const data = await res.json();
+    _discountData = data[0]?.value || {};
+  } catch(e) {
+    _discountData = {};
+  }
+}
+
+// Calcola prezzo scontato per un record
+function getDiscountedPrice(record) {
+  const cats = record.cats || (record.cat ? [record.cat] : []);
+  // Sconto globale
+  if (_discountData.all?.pct) {
+    const pct = parseFloat(_discountData.all.pct);
+    if (pct > 0) return Math.round(record.price * (1 - pct / 100));
+  }
+  // Sconto per categoria
+  for (const cat of cats) {
+    if (_discountData[cat]?.pct) {
+      const pct = parseFloat(_discountData[cat].pct);
+      if (pct > 0) return Math.round(record.price * (1 - pct / 100));
+    }
+  }
+  return record.price;
+}
 
 async function loadShippingData() {
   try {
@@ -2676,7 +2710,8 @@ function updateSEO(opts = {}) {
       offers: {
         '@type': 'Offer',
         priceCurrency: 'EUR',
-        price: r.price,
+        price: getDiscountedPrice(r),
+        originalPrice: r.price,
         availability: 'https://schema.org/InStock',
         seller: { '@type': 'Organization', name: 'AFRO-WANTED' }
       }
@@ -3591,6 +3626,7 @@ function initCookieBanner() {
 
 initCookieBanner();
 loadShippingData();
+loadDiscounts();
 loadFromSupabase();
 
 // ── PAYPAL CHECKOUT ──
