@@ -971,19 +971,25 @@ async function doLogin() {
   btn.disabled = false; btn.textContent = 'ENTER';
 }
 
+// ID disco da aprire dopo il login (da ?edit=ID nell'URL)
+let _pendingEditId = null;
+
 async function showAdmin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminScreen').classList.add('visible');
-  // Gestione URL ?edit=ID — apre direttamente la scheda edit
+  // Gestione URL ?edit=ID — salva l'ID e lo apre dopo che il catalogo è caricato
   const urlParams = new URLSearchParams(window.location.search);
   const editId = urlParams.get('edit');
-  if (editId) {
-    showTab('catalogue');
-    setTimeout(() => editRecord(parseInt(editId)), 800);
-  }
+  if (editId) _pendingEditId = parseInt(editId);
   const adminEmailEl = document.getElementById('adminEmail');
   if(adminEmailEl) adminEmailEl.textContent = sessionStorage.getItem('aw_admin_email') || '';
-  initPhotoSlots(); renderCatalogue(); initShipping(); initSettings(); initVacationMode(); initReservationsBadge(); initMessages();
+  initPhotoSlots(); await renderCatalogue(); initShipping(); initSettings(); initVacationMode(); initReservationsBadge(); initMessages();
+  // Apri la scheda edit dopo che il catalogo è pronto
+  if (_pendingEditId) {
+    showTab('add', document.querySelector('.tab-btn'));
+    editRecord(_pendingEditId);
+    _pendingEditId = null;
+  }
 }
 
 function doLogout(){
