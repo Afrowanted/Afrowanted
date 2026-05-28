@@ -3629,6 +3629,19 @@ loadShippingData();
 loadDiscounts();
 loadFromSupabase();
 
+// Ricarica sconti ogni 2 minuti e quando la pagina torna in focus
+setInterval(async () => {
+  await loadDiscounts();
+  render();
+}, 120_000);
+
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') {
+    await loadDiscounts();
+    render();
+  }
+});
+
 // ── PAYPAL CHECKOUT ──
 const PAYPAL_CLIENT_ID = 'AaR9DplznxHGUZ25EODYyaVN3gpYnyvH5hqMvcTIxkQQ09_CIa2wiJyrDzLwOfZMhIUArWB4NTZbpxKV';
 let _paypalRendered = false;
