@@ -2508,10 +2508,35 @@ async function loadDiscounts() {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
     });
     const data = await res.json();
-    _discountData = data[0]?.value || {};
+    const newData = data[0]?.value || {};
+    // Aggiorna solo se i dati sono cambiati
+    if (JSON.stringify(newData) !== JSON.stringify(_discountData)) {
+      _discountData = newData;
+      updatePricesInDOM();
+    }
   } catch(e) {
     _discountData = {};
   }
+}
+
+// Aggiorna solo i prezzi nelle card già renderizzate senza ricreare le immagini
+function updatePricesInDOM() {
+  document.querySelectorAll('.record-card').forEach(card => {
+    const addBtn = card.querySelector('.add-btn');
+    if (!addBtn) return;
+    const onclickAttr = addBtn.getAttribute('onclick') || '';
+    const match = onclickAttr.match(/addToCart\((\d+)\)/);
+    if (!match) return;
+    const id = parseInt(match[1]);
+    const r = RECORDS.find(x => x.id === id);
+    if (!r) return;
+    const priceEl = card.querySelector('.record-price');
+    if (!priceEl) return;
+    const dp = getDiscountedPrice(r);
+    priceEl.innerHTML = dp < r.price
+      ? `<span style="text-decoration:line-through;color:var(--muted);font-size:.7em;margin-right:.3em;">€${r.price}</span><span style="color:#e8b84b;">€${dp}</span>`
+      : `€${r.price}`;
+  });
 }
 
 // Calcola prezzo scontato per un record
@@ -3629,17 +3654,12 @@ loadShippingData();
 loadDiscounts();
 loadFromSupabase();
 
-// Ricarica sconti ogni 2 minuti e quando la pagina torna in focus
-setInterval(async () => {
-  await loadDiscounts();
-  render();
-}, 120_000);
+// Ricarica sconti ogni 2 minuti in background (senza re-render che rompe le immagini)
+setInterval(loadDiscounts, 120_000);
 
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible') {
-    await loadDiscounts();
-    render();
-  }
+// Ricarica sconti quando la pagina torna in focus
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') loadDiscounts();
 });
 
 // ── PAYPAL CHECKOUT ──
