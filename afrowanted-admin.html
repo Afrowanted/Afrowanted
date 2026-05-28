@@ -1942,7 +1942,7 @@ async function renderOrders() {
   tbody.innerHTML = orders.map(o => {
     const date = new Date(o.created_at).toLocaleDateString('it-IT');
     const name = o.buyer_name || o.buyer_email || '—';
-    const total = '€' + ((o.total||0)/100).toFixed(2);
+    const total = '€' + Number(o.total||0).toFixed(2);
     const statusClass = o.status==='shipped'?'shipped':o.status==='delivered'?'delivered':o.status==='refunded'?'refunded':'pending';
     const shippingBlock = [o.buyer_name, o.shipping_address, o.buyer_phone, o.buyer_email].filter(Boolean).join('\\n');
     return `
@@ -2188,7 +2188,7 @@ async function renderCustomers() {
       <td style="color:var(--cream);">${r.email}</td>
       <td>${r.name}</td>
       <td><span class="tbl-meta">${r.orders}</span></td>
-      <td><span class="tbl-price">${r.total?'€'+(r.total/100).toFixed(2):'—'}</span></td>
+      <td><span class="tbl-price">${r.total?'€'+Number(r.total).toFixed(2):'—'}</span></td>
       <td><span class="tbl-meta">${r.since?new Date(r.since).toLocaleDateString('it-IT'):'—'}</span></td>
     </tr>
     <tr>
@@ -2230,8 +2230,8 @@ async function renderAnalytics() {
     {label:'Drafts', value:draftRecords, sub:'not yet published'},
     {label:'Total Orders', value:totalOrders, sub:'all time'},
     {label:'This Month', value:thisMonth.length, sub:'orders'},
-    {label:'Total Revenue', value:'€'+(totalRevenue/100).toFixed(0), sub:'all time'},
-    {label:'Month Revenue', value:'€'+(monthRevenue/100).toFixed(0), sub:'current month'},
+    {label:'Total Revenue', value:'€'+Number(totalRevenue).toFixed(0), sub:'all time'},
+    {label:'Month Revenue', value:'€'+Number(monthRevenue).toFixed(0), sub:'current month'},
   ].map(s=>`
     <div class="stat-card">
       <div class="stat-label">${s.label}</div>
@@ -2250,7 +2250,7 @@ async function renderAnalytics() {
   // recent sales
   const recent = [...orders].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,6);
   document.getElementById('recentSales').innerHTML = recent.length
-    ? recent.map(o=>`<div class="top-item"><span class="top-item-name">${new Date(o.created_at).toLocaleDateString('it-IT')}</span><span class="top-item-val">€${((o.total||0)/100).toFixed(2)}</span></div>`).join('')
+    ? recent.map(o=>`<div class="top-item"><span class="top-item-name">${new Date(o.created_at).toLocaleDateString('it-IT')}</span><span class="top-item-val">€${Number(o.total||0).toFixed(2)}</span></div>`).join('')
     : '<div style="color:var(--muted);font-size:.8rem;padding:.5rem 0;">No orders yet</div>';
 }
 
