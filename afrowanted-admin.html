@@ -147,7 +147,8 @@
   .mini-time{font-family:'Space Mono',monospace;font-size:.55rem;color:var(--muted);white-space:nowrap;}
 
   .form-divider{grid-column:1/-1;border:none;border-top:1px solid var(--border);margin:.5rem 0;}
-  .form-actions{grid-column:1/-1;display:flex;gap:1rem;align-items:center;padding-top:.5rem;}
+  .form-actions{grid-column:1/-1;display:flex;gap:1rem;align-items:center;padding-top:.5rem;flex-wrap:wrap;}
+  @media(max-width:600px){.form-actions{position:sticky;bottom:0;background:var(--bg);padding:1rem;border-top:1px solid var(--border);z-index:50;margin:0 -1.5rem;padding-left:1.5rem;padding-right:1.5rem;}.submit-btn{flex:1;padding:.9rem 1rem;}}
   .submit-btn{background:var(--gold);border:none;color:var(--bg);font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;letter-spacing:1.5px;padding:.9rem 2rem;border-radius:2px;cursor:pointer;transition:background .12s;flex-shrink:0;}
   .submit-btn:hover{background:var(--gold-light);}
   .submit-btn:disabled{background:var(--muted2);color:var(--muted);cursor:not-allowed;}
@@ -1282,15 +1283,29 @@ async function submitRecord(){
     img_url:document.getElementById('imgUrl').value,
     img_urls:JSON.parse(document.getElementById('imgUrls').value||'[]'),
     ribbon:document.getElementById('fRibbon').value.trim()||null,
-    available:true,visible:false,
   };
   if(editingId){
+    // Non sovrascrivere available/visible durante una modifica
+    const existing = _allRecords.find(x=>x.id===parseInt(editingId));
+    if(existing) {
+      row.available = existing.available !== undefined ? existing.available : true;
+      row.visible   = existing.visible   !== undefined ? existing.visible   : false;
+    }
     await sbUpdate(parseInt(editingId),row);
     showToast('✓ Record updated: '+row.label);
     btn.disabled=false;btn.textContent='SAVE RECORD';
     resetForm();
     _catalogueLoaded=false;
-    showTab('catalogue'); // torna al catalogue dopo modifica
+    // Torna al catalogue mantenendo la ricerca attiva
+    const savedSearch = document.getElementById('catSearch')?.value || '';
+    showTab('catalogue');
+    setTimeout(()=>{
+      const catSearchEl = document.getElementById('catSearch');
+      if(catSearchEl && savedSearch) {
+        catSearchEl.value = savedSearch;
+        filterCatalogue(savedSearch);
+      }
+    }, 100);
     return;
   } else {
     row.date_added=new Date().toISOString();
