@@ -1128,7 +1128,12 @@ async function uploadSlotToRaspberry(blob, i){
     const res = await fetch(RASPBERRY_UPLOAD_URL, { method:'POST', body:fd });
     const data = await res.json();
     if(data.url){
-      _photoUrls[i] = data.url;
+      // Cache-busting: aggiunge ?v=timestamp per forzare reload immagine su Cloudflare
+      const cacheBust = '?v=' + Date.now();
+      _photoUrls[i] = data.url + cacheBust;
+      // Aggiorna anteprima slot con URL fresco
+      const slotImg = document.getElementById('slot-img-'+i);
+      if(slotImg && data.url) slotImg.src = data.url + cacheBust;
       // Salva filename temporaneo per il rename dopo il salvataggio
       if(!recordId) {
         if(!window._tempFiles) window._tempFiles = [null,null,null,null,null];
