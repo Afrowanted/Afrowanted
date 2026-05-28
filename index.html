@@ -3796,7 +3796,6 @@ function startCheckout(method = 'paypal') {
         if (p.country) {
           document.getElementById('cfCountry').value = p.country;
           updateCartShipping();
-          updateCheckoutShipping();
         }
       }
     }).catch(() => {});
@@ -4967,7 +4966,7 @@ async function handleWisePayment() {
 
   // Max 5 dischi per ordine Wise
   if (cart.length > 5) {
-    showToast('Bank transfer is limited to 5 records per order. Contact us for larger orders.');
+    showToast('Bank transfer is limited to 5 records per order. Contact us at afrowantedrecords@gmail.com for larger orders.');
     return;
   }
 
