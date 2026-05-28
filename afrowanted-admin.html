@@ -324,6 +324,95 @@
   .discount-active-badge{font-family:'Space Mono',monospace;font-size:.55rem;color:var(--green-light);margin-top:.4rem;display:none;}
   .discount-active-badge.visible{display:block;}
 
+
+  /* ════════════════════════════════════════
+     MOBILE ADMIN — max 768px
+  ════════════════════════════════════════ */
+  @media(max-width:768px){
+    .admin-header{padding:0 .75rem;height:48px;}
+    .admin-logo{font-size:1.2rem;letter-spacing:2px;}
+    .admin-badge{display:none;}
+    .logout-btn{font-size:.5rem;padding:.25rem .5rem;}
+    .admin-tabs{display:none;}
+    .tab-panel{padding:1rem .75rem;padding-bottom:5rem;}
+
+    /* Catalogo */
+    .catalogue-toolbar{gap:.4rem;}
+    .catalogue-search{font-size:.82rem;padding:.5rem .7rem;min-width:0;flex:1;}
+    .cat-filter{font-size:.55rem;padding:.4rem .45rem;}
+    .record-count,.export-btn{display:none;}
+    .records-table th:nth-child(1),.records-table td:nth-child(1){display:none;}
+    .records-table th:nth-child(5),.records-table td:nth-child(5){display:none;}
+    .records-table th:nth-child(7),.records-table td:nth-child(7){display:none;}
+    .records-table th:nth-child(8),.records-table td:nth-child(8){display:none;}
+    .records-table td{padding:.45rem .35rem;font-size:.76rem;}
+    .records-table th{padding:.45rem .35rem;font-size:.48rem;}
+    .tbl-cover{width:38px;height:38px;}
+    .tbl-title{font-size:.76rem;line-height:1.3;}
+    .tbl-meta{font-size:.5rem;}
+    .tbl-price{font-size:.68rem;}
+    .tbl-actions{flex-direction:column;gap:.2rem;}
+    .tbl-btn{font-size:.5rem;padding:.22rem .4rem;}
+    .drag-handle{display:none;}
+    .bulk-bar{padding:.5rem .6rem;gap:.4rem;}
+    .bulk-info{font-size:.52rem;}
+    .bulk-btn{font-size:.5rem;padding:.3rem .55rem;}
+
+    /* Form Add/Edit */
+    .form-title{font-size:1.2rem;margin-bottom:.75rem;}
+    .form-grid{grid-template-columns:1fr;gap:.65rem;}
+    #photoSlots{gap:.3rem;}
+    .cat-checkboxes{gap:.35rem;}
+    .cat-check{padding:.55rem .7rem;font-size:.82rem;border-radius:4px;}
+    .field input,.field select,.field textarea{font-size:.95rem;padding:.75rem .8rem;}
+
+    /* Ordini */
+    .order-copy-block{font-size:.63rem;padding:.55rem .7rem;}
+    .status-select{font-size:.63rem;padding:.38rem .55rem;}
+  }
+
+  @media(max-width:400px){
+    .tbl-cover{width:32px;height:32px;}
+    .tbl-title{font-size:.7rem;}
+  }
+
+  /* ── MOBILE BOTTOM NAV ── */
+  .mobile-bottom-nav{display:none;}
+  @media(max-width:768px){
+    .mobile-bottom-nav{
+      display:flex;
+      position:fixed;
+      bottom:0;left:0;right:0;
+      background:var(--surface);
+      border-top:2px solid var(--border);
+      z-index:200;
+      height:58px;
+      safe-area-inset-bottom:env(safe-area-inset-bottom);
+    }
+    .mob-nav-btn{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:3px;
+      background:none;
+      border:none;
+      cursor:pointer;
+      color:var(--muted);
+      transition:color .12s;
+      padding:.3rem .1rem;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .mob-nav-btn.active{color:var(--gold);}
+    .mob-nav-btn .mob-icon{font-size:1.4rem;line-height:1;}
+    .mob-nav-btn .mob-label{font-family:'Space Mono',monospace;font-size:.42rem;letter-spacing:.5px;text-transform:uppercase;}
+    /* Tasto save sticky */
+    .form-actions{position:sticky;bottom:0;background:var(--bg);padding:.75rem;border-top:1px solid var(--border);z-index:50;margin:0 -.75rem;flex-wrap:nowrap;}
+    .submit-btn{flex:1;padding:.85rem .5rem;font-size:.65rem;}
+    .reset-btn{padding:.85rem .75rem;font-size:.6rem;}
+  }
+
   /* SETTINGS */
   .settings-section{margin-bottom:2rem;}
   .settings-section-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--cream);letter-spacing:2px;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);}
@@ -371,6 +460,25 @@
   <div class="vacation-banner-admin" id="vacationBannerAdmin">
     🌴 VACATION MODE ACTIVE — purchases disabled on public site
   </div>
+
+  <!-- Mobile Bottom Nav -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <button class="mob-nav-btn" onclick="showTab('catalogue',this);setMobActive(this)">
+      <span class="mob-icon">📋</span><span class="mob-label">Catalogo</span>
+    </button>
+    <button class="mob-nav-btn" onclick="showTab('add',this);setMobActive(this)">
+      <span class="mob-icon">✏️</span><span class="mob-label">Add/Edit</span>
+    </button>
+    <button class="mob-nav-btn" onclick="showTab('orders',this);setMobActive(this)">
+      <span class="mob-icon">📦</span><span class="mob-label">Ordini</span>
+    </button>
+    <button class="mob-nav-btn" onclick="showTab('messages',this);setMobActive(this)">
+      <span class="mob-icon">✉️</span><span class="mob-label">Msg</span>
+    </button>
+    <button class="mob-nav-btn" onclick="showTab('shipping',this);setMobActive(this)">
+      <span class="mob-icon">⚙️</span><span class="mob-label">Altro</span>
+    </button>
+  </nav>
 
   <nav class="admin-tabs">
     <button class="tab-btn active" onclick="showTab('add',this)">＋ Add Record</button>
@@ -873,6 +981,9 @@ async function doLogin() {
 async function showAdmin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminScreen').classList.add('visible');
+  // Imposta catalogo come attivo nella bottom nav
+  const firstMobBtn = document.querySelector('.mob-nav-btn');
+  if(firstMobBtn) firstMobBtn.classList.add('active');
   const adminEmailEl = document.getElementById('adminEmail');
   if(adminEmailEl) adminEmailEl.textContent = sessionStorage.getItem('aw_admin_email') || '';
   initPhotoSlots(); renderCatalogue(); initShipping(); initSettings(); initVacationMode(); initReservationsBadge(); initMessages();
@@ -900,6 +1011,11 @@ if(document.readyState === 'loading'){
 }
 
 // TABS
+function setMobActive(el){
+  document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+}
+
 function showTab(id,btn){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
