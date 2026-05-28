@@ -3597,18 +3597,17 @@ function radioGoToRecord() {
 // ── UNDER CONSTRUCTION ──
 async function initUnderConstruction() {
   const overlay = document.getElementById('underConstructionOverlay');
-  // Se già sbloccato in sessione — nascondi subito senza flash
-  if (sessionStorage.getItem('uc_unlocked') === 'true') {
-    overlay.classList.add('hidden');
-    return;
-  }
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.under_construction&select=value`,
       {headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
     if (res.ok) {
       const d = await res.json();
       if (d[0]?.value?.active === true) {
-        // Mantieni overlay visibile e mostra il form
+        // Under construction attivo — controlla sessionStorage solo ora
+        if (sessionStorage.getItem('uc_unlocked') === 'true') {
+          overlay.classList.add('hidden');
+          return;
+        }
         overlay.classList.add('show');
         document.getElementById('ucPassword').focus();
       } else {
