@@ -913,8 +913,6 @@
 // _authToken dichiarato nel blocco AUTH
 const SUPABASE_URL   = 'https://gohqfbdepmqacxcfijzl.supabase.co';
 const SUPABASE_KEY   = 'sb_publishable_bI8wUzAGj-YUFMqb4dLldA_NRhQjUzH';
-const CLOUDINARY_CLOUD  = 'YOUR_CLOUD_NAME';
-const CLOUDINARY_PRESET = 'YOUR_UPLOAD_PRESET';
 const PUBLIC_URL = 'https://afrowanted.vercel.app';
 
 // AUTH — Supabase Auth
@@ -1299,9 +1297,6 @@ function clearPhoto(){
   document.getElementById('uploadStatus').className='upload-status';
 }
 // Compat alias
-function triggerPhotoInput(){ document.getElementById('slot-0').querySelector('input').click(); }
-function handlePhotoSelect(e){ handleSlotSelect(e,0); }
-async function uploadToCloudinary(file){ /* deprecato — ora usa Raspberry */ }
 
 // RIBBON
 function updateRibbonPreview(inputId,previewId,tagId){
