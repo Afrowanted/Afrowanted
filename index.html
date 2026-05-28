@@ -2713,6 +2713,23 @@ function showToast(msg) {
   t.style.visibility = 'visible';
 }
 
+function showWiseAlert(msg) {
+  const existing = document.getElementById('wiseAlertOverlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'wiseAlertOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.innerHTML = `
+    <div style="background:#1a1710;border:2px solid #c9943a;border-radius:6px;padding:2rem;max-width:420px;width:100%;text-align:center;">
+      <div style="font-size:2rem;margin-bottom:1rem;">⚠️</div>
+      <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:#c9943a;letter-spacing:2px;margin-bottom:1rem;">BANK TRANSFER LIMIT</div>
+      <div style="color:#f0e6cc;font-size:.9rem;line-height:1.6;margin-bottom:1.5rem;">${msg}</div>
+      <button onclick="document.getElementById('wiseAlertOverlay').remove()" style="background:#c9943a;color:#0a0805;border:none;font-family:'Space Mono',monospace;font-size:.7rem;font-weight:700;letter-spacing:1.5px;padding:.75rem 2rem;border-radius:3px;cursor:pointer;">OK</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
 // ── SEO ──
 function updateSEO(opts = {}) {
   const base = 'https://www.afrowanted.com';
@@ -4967,7 +4984,7 @@ async function handleWisePayment() {
 
   // Max 5 dischi per ordine Wise
   if (cart.length > 5) {
-    showToast('Bank transfer is limited to 5 records per order. Contact us at afrowantedrecords@gmail.com for larger orders.');
+    showWiseAlert('Bank transfer is limited to 5 records per order.<br><br>Contact us at <a href="mailto:afrowantedrecords@gmail.com" style="color:#c9943a;">afrowantedrecords@gmail.com</a> for larger orders.');
     return;
   }
 
