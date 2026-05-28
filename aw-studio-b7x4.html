@@ -956,8 +956,8 @@ async function doLogin() {
     const data = await res.json();
     if (data.access_token) {
       _authToken = data.access_token;
-      sessionStorage.setItem('aw_admin_token', _authToken);
-      sessionStorage.setItem('aw_admin_email', email);
+      localStorage.setItem('aw_admin_token', _authToken);
+      localStorage.setItem('aw_admin_email', email);
       showAdmin();
     } else {
       err.textContent = data.error_description || 'Wrong email or password.';
@@ -982,7 +982,7 @@ async function showAdmin() {
   const editId = urlParams.get('edit');
   if (editId) _pendingEditId = parseInt(editId);
   const adminEmailEl = document.getElementById('adminEmail');
-  if(adminEmailEl) adminEmailEl.textContent = sessionStorage.getItem('aw_admin_email') || '';
+  if(adminEmailEl) adminEmailEl.textContent = localStorage.getItem('aw_admin_email') || '';
   initPhotoSlots(); await renderCatalogue(); initShipping(); initSettings(); initVacationMode(); initReservationsBadge(); initMessages();
   // Apri la scheda edit dopo che il catalogo è pronto
   if (_pendingEditId) {
@@ -993,15 +993,15 @@ async function showAdmin() {
 }
 
 function doLogout(){
-  sessionStorage.removeItem('aw_admin_token');
-  sessionStorage.removeItem('aw_admin_email');
+  localStorage.removeItem('aw_admin_token');
+  localStorage.removeItem('aw_admin_email');
   _authToken = null;
   location.reload();
 }
 
 // Ripristina sessione esistente — aspetta che il DOM sia pronto
 function tryRestoreSession(){
-  const _savedToken = sessionStorage.getItem('aw_admin_token');
+  const _savedToken = localStorage.getItem('aw_admin_token');
   if(_savedToken){
     _authToken = _savedToken;
     showAdmin();
