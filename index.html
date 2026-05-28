@@ -4964,6 +4964,12 @@ async function handleWisePayment() {
     }
   }
 
+  // Max 5 dischi per ordine Wise
+  if (cart.length > 5) {
+    showToast('Bank transfer is limited to 5 records per order. Contact us for larger orders.');
+    return;
+  }
+
   const btn = document.getElementById('wisePayBtn');
   btn.disabled = true;
   btn.textContent = t('processing');
