@@ -966,6 +966,7 @@ async function doLogin() {
       _authToken = data.access_token;
       localStorage.setItem('aw_admin_token', _authToken);
       localStorage.setItem('aw_admin_email', email);
+      if (data.refresh_token) localStorage.setItem('aw_admin_refresh_token', data.refresh_token);
       showAdmin();
     } else {
       err.textContent = data.error_description || 'Wrong email or password.';
@@ -1003,17 +1004,49 @@ async function showAdmin() {
 function doLogout(){
   localStorage.removeItem('aw_admin_token');
   localStorage.removeItem('aw_admin_email');
+  localStorage.removeItem('aw_admin_refresh_token');
   _authToken = null;
   location.reload();
 }
 
 // Ripristina sessione esistente — aspetta che il DOM sia pronto
-function tryRestoreSession(){
+async function tryRestoreSession(){
   const _savedToken = localStorage.getItem('aw_admin_token');
-  if(_savedToken){
-    _authToken = _savedToken;
-    showAdmin();
-  }
+  const _savedRefresh = localStorage.getItem('aw_admin_refresh_token');
+  if(!_savedToken) return;
+
+  // Verifica che il token sia ancora valido
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + _savedToken }
+    });
+    if (res.ok) {
+      _authToken = _savedToken;
+      showAdmin();
+      return;
+    }
+    // Token scaduto — prova refresh
+    if (_savedRefresh) {
+      const rRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: _savedRefresh })
+      });
+      if (rRes.ok) {
+        const rData = await rRes.json();
+        if (rData.access_token) {
+          _authToken = rData.access_token;
+          localStorage.setItem('aw_admin_token', rData.access_token);
+          if (rData.refresh_token) localStorage.setItem('aw_admin_refresh_token', rData.refresh_token);
+          showAdmin();
+          return;
+        }
+      }
+    }
+  } catch(e) {}
+  // Token non valido — torna al login
+  localStorage.removeItem('aw_admin_token');
+  localStorage.removeItem('aw_admin_refresh_token');
 }
 if(document.readyState === 'loading'){
   document.addEventListener('DOMContentLoaded', tryRestoreSession);
