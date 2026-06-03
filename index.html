@@ -2015,7 +2015,6 @@ function getList() {
     if (!r.avail) return false;
     if (q) {
       return r.label.toLowerCase().includes(q) ||
-             r.artist.toLowerCase().includes(q) ||
              r.title.toLowerCase().includes(q) ||
              (r.country||'').toLowerCase().includes(q) ||
              (r.archive||'').toLowerCase().includes(q);
@@ -2059,9 +2058,8 @@ async function loadFromSupabase() {
       allData.forEach(r => {
         RECORDS.push({
           id:        r.id,
-          artist:    r.artist,
-          title:     r.label || r.title || r.artist,
-          label:     r.label || r.title || r.artist || '',
+          title:     r.label || r.title || '',
+          label:     r.label || r.title || '',
           cat:       (r.cats && r.cats[0]) || '',
           cats:      r.cats || [],
           subcat:    (r.subcats && r.subcats[0]) || null,
@@ -2748,7 +2746,7 @@ function updateSEO(opts = {}) {
       name: `${r.label}`,
       description: desc,
       image: img,
-      brand: { '@type': 'Brand', name: r.artist },
+      brand: { '@type': 'Brand', name: r.title||'' },
       offers: {
         '@type': 'Offer',
         priceCurrency: 'EUR',

@@ -1539,11 +1539,11 @@ function renderMobileCatalogue(records) {
     const statusLabel = !r.avail ? 'SOLD' : r.visible ? '● ON' : 'DRAFT';
     const archive = r.archive ? `<div class="mob-item-archive">📦 ${r.archive}</div>` : '';
     const ribbon = r.ribbon ? `<div class="mob-item-ribbon">★ ${r.ribbon}</div>` : '';
-    const safeTitle = (r.label||r.title||r.artist||'').replace(/'/g,"\'");
+    const safeTitle = (r.label||r.title||'').replace(/'/g,"\'");
     return `<div class="mob-item">
       <img class="mob-item-img" src="${r.img||''}" onerror="this.style.background='var(--surface3)'" onclick="editRecord(${r.id})">
       <div class="mob-item-body" onclick="editRecord(${r.id})">
-        <div class="mob-item-title">${r.label||r.title||r.artist||''}</div>
+        <div class="mob-item-title">${r.label||r.title||''}</div>
         <div class="mob-item-meta">
           <span class="mob-item-price">€${r.price||0}</span>
           <span class="mob-item-status ${status}">${statusLabel}</span>
@@ -1580,7 +1580,7 @@ async function renderCatalogue(q='',catFilter='',visFilter='',sortMode='date-des
   }
   const sq=q.toLowerCase();
   const records=_allRecords.map(r=>({
-    id:r.id,label:r.label||r.title||r.artist||'',artist:r.artist||'',title:r.title||'',
+    id:r.id,label:r.label||r.title||'',title:r.title||'',
     cat:(r.cats&&r.cats[0])||'',cats:r.cats||[],
     price:r.price||0,img:r.img_url||(Array.isArray(r.img_urls)&&r.img_urls[0])||'',
     audio:r.audio_url||null,archive:r.archive_position||'',
@@ -1589,7 +1589,7 @@ async function renderCatalogue(q='',catFilter='',visFilter='',sortMode='date-des
     description:r.description||'',
   }));
   const filtered=records.filter(r=>{
-    const matchQ=!sq||((r.label||r.artist||'')+' '+r.archive).toLowerCase().includes(sq);
+    const matchQ=!sq||((r.label||r.title||'')+' '+r.archive).toLowerCase().includes(sq);
     const matchCat=!catFilter||r.cat===catFilter;
     const matchVis=!visFilter||(visFilter==='draft'&&!r.visible&&r.avail)||(visFilter==='published'&&r.visible&&r.avail)||(visFilter==='sold'&&!r.avail);
     return matchQ&&matchCat&&matchVis;
@@ -1609,7 +1609,7 @@ async function renderCatalogue(q='',catFilter='',visFilter='',sortMode='date-des
       <td><span class="drag-handle" title="Drag to reorder">⠿</span></td>
       <td><input class="row-check" type="checkbox" ${selectedIds.has(r.id)?'checked':''} onchange="toggleSelect(${r.id},this.checked)"></td>
       <td><img class="tbl-cover" src="${r.img}" alt="" onerror="this.style.background='var(--surface3)'"></td>
-      <td><a class="tbl-title" href="?edit=${r.id}" onclick="event.preventDefault();editRecord(${r.id})" style="cursor:pointer;color:var(--gold);text-decoration:underline;display:block;">${r.label||r.title||r.artist}</a></td>
+      <td><a class="tbl-title" href="?edit=${r.id}" onclick="event.preventDefault();editRecord(${r.id})" style="cursor:pointer;color:var(--gold);text-decoration:underline;display:block;">${r.label||r.title||''}</a></td>
       <td><span class="tbl-meta">${r.cats.filter(Boolean).join(', ')}</span></td>
       <td>
         <span class="tbl-price" id="pd-${r.id}" onclick="startPriceEdit(${r.id},${r.price})">€${r.price}</span>
@@ -1733,13 +1733,13 @@ function editRecord(id){
 
   // scroll to top
   window.scrollTo({top:0,behavior:'smooth'});
-  showToast('Editing: '+(r.label||r.title||r.artist));
+  showToast('Editing: '+(r.label||r.title||''));
 }
 
 // DUPLICATE
 async function duplicateRecord(id){
   const r=_allRecords.find(x=>x.id===id);if(!r) return;
-  const newRec={artist:r.artist,title:r.title,cats:r.cats,subcats:r.subcats,price:r.price,description:r.description,img_url:r.img_url,img_urls:r.img_urls,audio_url:r.audio_url,archive_position:r.archive_position,ribbon:r.ribbon,available:true,visible:false,date_added:new Date().toISOString()};
+  const newRec={title:r.title,cats:r.cats,subcats:r.subcats,price:r.price,description:r.description,img_url:r.img_url,img_urls:r.img_urls,audio_url:r.audio_url,archive_position:r.archive_position,ribbon:r.ribbon,available:true,visible:false,date_added:new Date().toISOString()};
   const {error}=await sbInsert(newRec);
   if(error){showToast('Error duplicating',true);return;}
   showToast('✓ Duplicated — in Draft at top');
@@ -1835,15 +1835,15 @@ function exportCSV(){
   const catF=document.getElementById('catFilterSel').value;
   const visF=document.getElementById('visFilterSel').value;
   const filtered=_allRecords.filter(r=>{
-    const matchQ=!q||((r.label||r.artist||'')+' '+(r.archive_position||'')).toLowerCase().includes(q);
+    const matchQ=!q||((r.label||r.title||'')+' '+(r.archive_position||'')).toLowerCase().includes(q);
     const matchCat=!catF||((r.cats&&r.cats[0])||''===catF);
     const avail=r.available!==undefined?r.available:true;
     const vis=r.visible||false;
     const matchVis=!visF||(visF==='draft'&&!vis&&avail)||(visF==='published'&&vis&&avail)||(visF==='sold'&&!avail);
     return matchQ&&matchCat&&matchVis;
   });
-  const headers=['id','artist','title','categories','price','ribbon','archive','visible','available','date_added'];
-  const rows=filtered.map(r=>[r.id,`"${(r.artist||'').replace(/"/g,'""')}"`,`"${(r.title||'').replace(/"/g,'""')}"`,`"${(r.cats||[]).join('|')}"`,r.price||0,`"${r.ribbon||''}"`,`"${r.archive_position||''}"`,r.visible||false,r.available!==undefined?r.available:true,r.date_added||''].join(','));
+  const headers=['id','title','categories','price','ribbon','archive','visible','available','date_added'];
+  const rows=filtered.map(r=>[r.id,`"${(r.title||'').replace(/"/g,'""')}"`,`"${(r.title||'').replace(/"/g,'""')}"`,`"${(r.cats||[]).join('|')}"`,r.price||0,`"${r.ribbon||''}"`,`"${r.archive_position||''}"`,r.visible||false,r.available!==undefined?r.available:true,r.date_added||''].join(','));
   const csv=[headers.join(','),...rows].join('\n');
   const blob=new Blob([csv],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
@@ -2083,7 +2083,7 @@ async function renderOrders() {
             const rec = _allRecords.find(r => r.id == rid);
             return rec
               ? `<div style="padding:3px 0;border-bottom:1px solid var(--border);">
-                  <span style="color:var(--gold);">${rec.artist||''}</span> — ${rec.title||''} 
+                  <span style="color:var(--gold);">${rec.title||''}</span>
                   ${rec.archive_position ? `<span style="color:var(--muted);font-size:.72rem;">[${rec.archive_position}]</span>` : ''}
                   <span style="float:right;color:var(--gold);">€${rec.price||0}</span>
                 </div>`
@@ -2137,7 +2137,7 @@ function renderMobileOrders(orders) {
     // Dischi ordinati
     const recList = (o.record_ids||[]).map(rid => {
       const rec = _allRecords.find(r => r.id == rid);
-      return rec ? `<div class="mob-order-rec"><span>${rec.artist||''} — ${rec.title||''} ${rec.archive_position?'['+rec.archive_position+']':''}</span><span style="color:var(--gold);">€${rec.price||0}</span></div>` : `<div class="mob-order-rec"><span style="color:var(--muted);">ID: ${rid}</span></div>`;
+      return rec ? `<div class="mob-order-rec"><span>${rec.title||''} ${rec.archive_position?'['+rec.archive_position+']':''}</span><span style="color:var(--gold);">€${rec.price||0}</span></div>` : `<div class="mob-order-rec"><span style="color:var(--muted);">ID: ${rid}</span></div>`;
     }).join('');
 
     return `${dateHeader}
