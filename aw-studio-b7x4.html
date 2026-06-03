@@ -1668,17 +1668,28 @@ async function dropOn(e,targetId){
   const dragRec=_allRecords.find(r=>r.id===_dragId);
   const targetRec=_allRecords.find(r=>r.id===targetId);
   if(!dragRec||!targetRec) return;
-  // Swappa i date_added così l'ordine cronologico riflette quello visivo
+  // Swappa i date_added in memoria e su Supabase
   const tmp=dragRec.date_added;
   dragRec.date_added=targetRec.date_added;
   targetRec.date_added=tmp;
   await Promise.all([sbUpdate(_dragId,{date_added:dragRec.date_added}),sbUpdate(targetId,{date_added:targetRec.date_added})]);
   _dragId=null;
-  // Ri-renderizza mantenendo la posizione dello scroll
-  const scrollY=window.scrollY;
-  _catalogueLoaded=true; // dati già aggiornati in _allRecords, non ricaricare da Supabase
-  filterCatalogue(document.getElementById('catSearch').value);
-  requestAnimationFrame(()=>window.scrollTo({top:scrollY}));
+  // Swap visivo delle righe nel DOM — senza ri-renderizzare, senza scroll
+  const dragRow=document.getElementById('row-'+dragRec.id);
+  const targetRow=document.getElementById('row-'+targetRec.id);
+  if(dragRow&&targetRow){
+    const tbody=dragRow.parentNode;
+    const dragNext=dragRow.nextSibling;
+    const targetNext=targetRow.nextSibling;
+    if(dragNext===targetRow){
+      tbody.insertBefore(targetRow,dragRow);
+    } else if(targetNext===dragRow){
+      tbody.insertBefore(dragRow,targetRow);
+    } else {
+      tbody.insertBefore(dragRow,targetNext);
+      tbody.insertBefore(targetRow,dragNext);
+    }
+  }
   showToast('✓ Order updated');
 }
 
