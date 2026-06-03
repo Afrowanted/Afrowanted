@@ -462,8 +462,7 @@
   </div>
 
   <nav class="admin-tabs">
-    <button class="tab-btn active" onclick="showTab('add',this)">＋ Add Record</button>
-    <button class="tab-btn" onclick="showTab('catalogue',this)">Catalogue</button>
+    <button class="tab-btn active" onclick="showTab('catalogue',this)">Catalogue</button>
     <button class="tab-btn" onclick="showTab('orders',this)">Orders</button>
     <button class="tab-btn" onclick="showTab('reservations',this)" id="tabBtnReservations">Reservations <span id="reservationsBadge" style="background:#c9943a;color:#000;border-radius:50%;padding:0 5px;font-size:.65rem;margin-left:2px;display:none;">0</span></button>
     <button class="tab-btn" onclick="showTab('customers',this)">Customers</button>
@@ -476,7 +475,7 @@
   </nav>
 
   <!-- ADD RECORD -->
-  <div class="tab-panel active" id="tab-add">
+  <div class="tab-panel" id="tab-add">
     <div class="form-title" id="formTitleLabel">New Record</div>
     <input type="hidden" id="editingId">
     <div class="form-grid">
@@ -572,8 +571,9 @@
   </div>
 
   <!-- CATALOGUE -->
-  <div class="tab-panel" id="tab-catalogue">
+  <div class="tab-panel active" id="tab-catalogue">
     <div class="catalogue-toolbar">
+      <button onclick="showTab('add',null)" style="background:var(--gold);color:#000;border:none;font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:1px;text-transform:uppercase;padding:.6rem 1rem;cursor:pointer;white-space:nowrap;flex-shrink:0;">＋ Add Record</button>
       <input class="catalogue-search" type="text" placeholder="Search artist, title, archive…" oninput="filterCatalogue(this.value)" id="catSearch">
       <select class="cat-filter" onchange="filterCatalogue(document.getElementById('catSearch').value)" id="catSortSel">
         <option value="date-desc">Newest first</option>
@@ -995,7 +995,7 @@ async function showAdmin() {
   initPhotoSlots(); await renderCatalogue(); initShipping(); initSettings(); initVacationMode(); initReservationsBadge(); initMessages();
   // Apri la scheda edit dopo che il catalogo è pronto
   if (_pendingEditId) {
-    showTab('add', document.querySelector('.tab-btn'));
+    showTab('add', null);
     editRecord(_pendingEditId);
     _pendingEditId = null;
   }
@@ -1666,13 +1666,18 @@ async function dropOn(e,targetId){
   const dragRec=_allRecords.find(r=>r.id===_dragId);
   const targetRec=_allRecords.find(r=>r.id===targetId);
   if(!dragRec||!targetRec) return;
+  // Swappa i date_added così l'ordine cronologico riflette quello visivo
   const tmp=dragRec.date_added;
   dragRec.date_added=targetRec.date_added;
   targetRec.date_added=tmp;
   await Promise.all([sbUpdate(_dragId,{date_added:dragRec.date_added}),sbUpdate(targetId,{date_added:targetRec.date_added})]);
-  _dragId=null;_catalogueLoaded=false;
+  _dragId=null;
+  // Ri-renderizza mantenendo la posizione dello scroll
+  const scrollY=window.scrollY;
+  _catalogueLoaded=true; // dati già aggiornati in _allRecords, non ricaricare da Supabase
   filterCatalogue(document.getElementById('catSearch').value);
-  showToast('Order updated');
+  requestAnimationFrame(()=>window.scrollTo({top:scrollY}));
+  showToast('✓ Order updated');
 }
 
 // EDIT RECORD — loads into main Add Record form
@@ -1680,7 +1685,7 @@ function editRecord(id){
   const r=_allRecords.find(x=>x.id===id);if(!r) return;
 
   // switch to Add Record tab
-  showTab('add', document.querySelector('.tab-btn'));
+  showTab('add', null);
 
   // set editing mode
   document.getElementById('editingId').value=id;
@@ -1746,8 +1751,16 @@ async function duplicateRecord(id){
 async function toggleVisible(id,val){
   await sbUpdate(id,{visible:val,published_at:val?new Date().toISOString():null});
   const r=_allRecords.find(x=>x.id===id);if(r) r.visible=val;
+  // Aggiorna lo status badge nella riga senza ri-renderizzare tutto il catalogue
+  const row=document.getElementById('row-'+id);
+  if(row){
+    const badge=row.querySelector('.status-badge');
+    if(badge){
+      badge.className='status-badge '+(val?'pub':'draft');
+      badge.textContent=val?'● ON':'DRAFT';
+    }
+  }
   showToast(val?'✓ Published':'Moved to draft');
-  filterCatalogue(document.getElementById('catSearch').value);
 }
 function toggleSelect(id,checked){
   if(checked) selectedIds.add(id);else selectedIds.delete(id);
