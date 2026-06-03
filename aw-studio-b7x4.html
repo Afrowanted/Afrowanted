@@ -1446,6 +1446,9 @@ async function submitRecord(){
       row.visible   = existing.visible   !== undefined ? existing.visible   : false;
     }
     await sbUpdate(parseInt(editingId),row);
+    // Aggiorna anche _allRecords in memoria così riaprendo la scheda i dati sono freschi
+    const idx = _allRecords.findIndex(x=>x.id===parseInt(editingId));
+    if(idx>=0) Object.assign(_allRecords[idx], row);
     showToast('✓ Record updated: '+row.label);
     btn.disabled=false;btn.textContent='SAVE RECORD';
     resetForm();
