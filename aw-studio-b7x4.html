@@ -1822,7 +1822,16 @@ async function markAvailable(id) {
   await sbUpdate(id, {available: true, visible: true});
   const r = _allRecords.find(x => x.id === id);
   if (r) { r.available = true; r.visible = true; }
-  filterCatalogue(document.getElementById('catSearch').value);
+  // Aggiorna il bottone nella riga senza ri-renderizzare
+  const row = document.getElementById('row-'+id);
+  if(row){
+    const sellCell = row.querySelector('.tbl-btn.sell, .tbl-btn[onclick*="markAvailable"]')?.closest('td');
+    if(sellCell) sellCell.innerHTML=`<button class="tbl-btn sell" onclick="markSold(${id})">Mark Sold</button>`;
+    const badge = row.querySelector('.status-badge');
+    if(badge){ badge.className='status-badge pub'; badge.textContent='● ON'; }
+    const visToggle = row.querySelector('.vis-toggle input');
+    if(visToggle) visToggle.checked = true;
+  }
   showToast('✓ Record relisted — now visible on site');
 }
 
@@ -1830,7 +1839,17 @@ function markSold(id){
   openConfirm('Mark as Sold','This will hide the record from the public site.',async()=>{
     await sbUpdate(id,{available:false,visible:false});
     const r=_allRecords.find(x=>x.id===id);if(r){r.available=false;r.visible=false;}
-    filterCatalogue(document.getElementById('catSearch').value);showToast('✓ Marked as sold — hidden from site, visible to buyer');
+    // Aggiorna il bottone nella riga senza ri-renderizzare
+    const row=document.getElementById('row-'+id);
+    if(row){
+      const sellCell=row.querySelector('.tbl-btn.sell, .tbl-btn[onclick*="markSold"]')?.closest('td');
+      if(sellCell) sellCell.innerHTML=`<button class="tbl-btn" onclick="markAvailable(${id})" style="background:rgba(201,148,58,0.15);border-color:var(--gold);color:var(--gold);">↩ Relist</button>`;
+      const badge=row.querySelector('.status-badge');
+      if(badge){ badge.className='status-badge sold'; badge.textContent='SOLD'; }
+      const visToggle=row.querySelector('.vis-toggle input');
+      if(visToggle) visToggle.checked=false;
+    }
+    showToast('✓ Marked as sold — hidden from site, visible to buyer');
   });
 }
 function deleteRecord(id){
