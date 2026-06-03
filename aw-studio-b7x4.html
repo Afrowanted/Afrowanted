@@ -597,8 +597,11 @@
         <option value="draft">Draft only</option>
         <option value="published">Published only</option>
         <option value="sold">Sold only</option>
+        <option value="no-image">⚠ Missing image</option>
+        <option value="no-audio">⚠ Missing audio</option>
       </select>
       <button class="export-btn" onclick="exportCSV()">↓ Export CSV</button>
+      <button class="export-btn" onclick="openImportCSV()" style="background:rgba(201,148,58,0.15);border-color:var(--gold);color:var(--gold);">↑ Import CSV</button>
       <span class="record-count" id="recordCount">— records</span>
     </div>
 
@@ -1806,7 +1809,15 @@ async function bulkPublish(){
   const ids=[...selectedIds];
   await Promise.all(ids.map(id=>sbUpdate(id,{visible:true,published_at:new Date().toISOString()})));
   _allRecords.forEach(r=>{if(selectedIds.has(r.id)) r.visible=true;});
-  deselectAll();filterCatalogue(document.getElementById('catSearch').value);
+  // Aggiorna badge nelle righe senza re-render
+  ids.forEach(id=>{
+    const row=document.getElementById('row-'+id);
+    if(row){
+      const badge=row.querySelector('.status-badge');
+      if(badge){badge.className='status-badge pub';badge.textContent='● ON';}
+    }
+  });
+  deselectAll();
   showToast('✓ Published '+ids.length+' record'+(ids.length!==1?'s':''));
 }
 async function bulkUnpublish(){
@@ -1814,7 +1825,15 @@ async function bulkUnpublish(){
   const ids=[...selectedIds];
   await Promise.all(ids.map(id=>sbUpdate(id,{visible:false})));
   _allRecords.forEach(r=>{if(selectedIds.has(r.id)) r.visible=false;});
-  deselectAll();filterCatalogue(document.getElementById('catSearch').value);
+  // Aggiorna badge nelle righe senza re-render
+  ids.forEach(id=>{
+    const row=document.getElementById('row-'+id);
+    if(row){
+      const badge=row.querySelector('.status-badge');
+      if(badge){badge.className='status-badge draft';badge.textContent='DRAFT';}
+    }
+  });
+  deselectAll();
   showToast(ids.length+' record'+(ids.length!==1?'s':'')+' moved to draft');
 }
 async function markAvailable(id) {
@@ -1871,7 +1890,7 @@ function exportCSV(){
     const matchCat=!catF||((r.cats&&r.cats[0])||''===catF);
     const avail=r.available!==undefined?r.available:true;
     const vis=r.visible||false;
-    const matchVis=!visF||(visF==='draft'&&!vis&&avail)||(visF==='published'&&vis&&avail)||(visF==='sold'&&!avail);
+    const matchVis=!visF||(visF==='draft'&&!vis&&avail)||(visF==='published'&&vis&&avail)||(visF==='sold'&&!avail)||(visF==='no-image'&&!r.img_url&&(!r.img_urls||!r.img_urls.length))||(visF==='no-audio'&&!r.audio_url);
     return matchQ&&matchCat&&matchVis;
   });
   const headers=['id','title','categories','price','ribbon','archive','audio_url','visible','available','date_added'];
@@ -2817,5 +2836,98 @@ function showToast(msg,isError=false){const t=document.getElementById('toast');t
 // INIT
 // Init gestito da showAdmin()
 </script>
+<!-- IMPORT CSV MODAL -->
+<div id="importCsvModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);padding:2rem;max-width:520px;width:90%;border-radius:4px;">
+    <h3 style="font-family:'Space Mono',monospace;font-size:.8rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin:0 0 1rem;">↑ Import CSV</h3>
+    <p style="font-size:.75rem;color:var(--muted);margin:0 0 1rem;line-height:1.6;">
+      Il CSV deve avere una colonna <strong style="color:var(--fg);">id</strong> e almeno uno di questi campi:<br>
+      <code style="color:var(--gold);">audio_url, img_url, title, price, description, ribbon, visible</code>
+    </p>
+    <input type="file" id="importCsvFile" accept=".csv" style="display:none;" onchange="handleImportCSV(this)">
+    <button onclick="document.getElementById('importCsvFile').click()" style="background:var(--gold);color:#000;border:none;font-family:'Space Mono',monospace;font-size:.65rem;letter-spacing:1px;text-transform:uppercase;padding:.6rem 1.2rem;cursor:pointer;margin-right:.5rem;">Scegli file CSV</button>
+    <button onclick="document.getElementById('importCsvModal').style.display='none'" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:.65rem;letter-spacing:1px;text-transform:uppercase;padding:.6rem 1.2rem;cursor:pointer;">Annulla</button>
+    <div id="importCsvLog" style="margin-top:1rem;font-size:.72rem;color:var(--muted);max-height:200px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<script>
+function openImportCSV(){
+  document.getElementById('importCsvLog').innerHTML='';
+  document.getElementById('importCsvFile').value='';
+  document.getElementById('importCsvModal').style.display='flex';
+}
+
+async function handleImportCSV(input){
+  const file=input.files[0];
+  if(!file) return;
+  const log=document.getElementById('importCsvLog');
+  log.innerHTML='<div style="color:var(--gold);">Lettura CSV in corso...</div>';
+
+  const text=await file.text();
+  const lines=text.trim().split('\n');
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase());
+
+  if(!headers.includes('id')){
+    log.innerHTML='<div style="color:#e74c3c;">❌ Colonna "id" non trovata nel CSV.</div>';
+    return;
+  }
+
+  const ALLOWED=['audio_url','img_url','title','price','description','ribbon','visible','available','archive_position'];
+  const updateFields=headers.filter(h=>h!=='id'&&ALLOWED.includes(h));
+
+  if(!updateFields.length){
+    log.innerHTML='<div style="color:#e74c3c;">❌ Nessun campo aggiornabile trovato. Usa: '+ALLOWED.join(', ')+'</div>';
+    return;
+  }
+
+  log.innerHTML=`<div>Campi trovati: <strong style="color:var(--gold)">${updateFields.join(', ')}</strong></div><div>Righe da processare: ${lines.length-1}</div><br>`;
+
+  let ok=0, skipped=0, errors=0;
+  for(let i=1;i<lines.length;i++){
+    if(!lines[i].trim()) continue;
+    // Parse CSV line handling quoted values
+    const vals=[];
+    let cur='',inQ=false;
+    for(let c of lines[i]){
+      if(c==='"'){inQ=!inQ;}
+      else if(c===','&&!inQ){vals.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    vals.push(cur.trim());
+
+    const id=parseInt(vals[headers.indexOf('id')]);
+    if(!id||isNaN(id)){skipped++;continue;}
+
+    const row={};
+    for(const field of updateFields){
+      let val=vals[headers.indexOf(field)]||'';
+      val=val.replace(/^"|"$/g,'');
+      // Converti Dropbox dl=0 in dl=1
+      if(field==='audio_url'&&val) val=val.replace(/[?&]dl=0/,'?dl=1');
+      if(field==='visible'||field==='available') val=val==='true'||val==='1'||val==='TRUE';
+      if(field==='price') val=parseFloat(val)||0;
+      row[field]=val;
+    }
+
+    try{
+      await sbUpdate(id,row);
+      const r=_allRecords.find(x=>x.id===id);
+      if(r) Object.assign(r,row);
+      ok++;
+      if(ok%10===0) log.innerHTML+=`<div>✓ ${ok} aggiornati...</div>`;
+    } catch(e){
+      errors++;
+      log.innerHTML+=`<div style="color:#e74c3c;">❌ ID ${id}: ${e.message||'errore'}</div>`;
+    }
+  }
+
+  log.innerHTML+=`<br><div style="color:#2ecc71;font-weight:bold;">✓ Completato: ${ok} aggiornati, ${skipped} saltati, ${errors} errori.</div>`;
+  if(ok>0){
+    filterCatalogue(document.getElementById('catSearch').value);
+  }
+}
+</script>
+</html>
 </body>
 </html>
