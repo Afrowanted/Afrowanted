@@ -2102,7 +2102,7 @@ async function renderOrders() {
   tbody.innerHTML = orders.map(o => {
     const date = new Date(o.created_at).toLocaleDateString('it-IT');
     const name = o.buyer_name || o.buyer_email || '—';
-    const total = '€' + Number(o.total||0).toFixed(2);
+    const total = '€' + (Number(o.total||0)/100).toFixed(2);
     const statusClass = o.status==='shipped'?'shipped':o.status==='delivered'?'delivered':o.status==='refunded'?'refunded':'pending';
     const shippingBlock = [o.buyer_name, o.shipping_address, o.buyer_phone, o.buyer_email].filter(Boolean).join('\\n');
     return `
@@ -2176,7 +2176,7 @@ function renderMobileOrders(orders) {
     const dateHeader = date !== lastDate ? `<div class="mob-order-date">${date}</div>` : '';
     lastDate = date;
     const name = o.buyer_name || o.buyer_email || '—';
-    const total = '€' + Number(o.total||0).toFixed(2);
+    const total = '€' + (Number(o.total||0)/100).toFixed(2);
     const numRec = (o.record_ids||[]).length;
     const statusClass = o.status==='shipped'?'shipped':o.status==='delivered'?'delivered':o.status==='refunded'?'refunded':'pending';
     const statusLabel = o.status==='shipped'?'Spedito':o.status==='delivered'?'Consegnato':o.status==='refunded'?'Rimborsato':'In attesa';
@@ -2319,7 +2319,7 @@ function exportOrdersCSV() {
         o.buyer_email || '',
         o.buyer_phone || '',
         o.shipping_address || '',
-        o.total || 0,
+        (o.total||0)/100,
         o.status || '',
         o.payment_method || '',
         o.tracking_number || '',
@@ -2357,7 +2357,7 @@ async function renderCustomers() {
     if(!o.buyer_email) return;
     if(!orderMap[o.buyer_email]) orderMap[o.buyer_email] = {count:0, total:0};
     orderMap[o.buyer_email].count++;
-    orderMap[o.buyer_email].total += (o.total||0);
+    orderMap[o.buyer_email].total += (o.total||0)/100;
   });
 
   if(!profiles.length && !Object.keys(orderMap).length) {
@@ -2410,9 +2410,9 @@ async function renderAnalytics() {
   const totalRecords  = records.filter(r=>r.visible).length;
   const draftRecords  = records.filter(r=>!r.visible).length;
   const totalOrders   = orders.length;
-  const totalRevenue  = orders.reduce((s,o)=>s+(o.total||0),0);
+  const totalRevenue  = orders.reduce((s,o)=>s+(o.total||0)/100,0);
   const thisMonth     = orders.filter(o=>new Date(o.created_at).getMonth()===new Date().getMonth());
-  const monthRevenue  = thisMonth.reduce((s,o)=>s+(o.total||0),0);
+  const monthRevenue  = thisMonth.reduce((s,o)=>s+(o.total||0)/100,0);
 
   grid.innerHTML = [
     {label:'Published Records', value:totalRecords, sub:'active in catalogue'},
@@ -2439,7 +2439,7 @@ async function renderAnalytics() {
   // recent sales
   const recent = [...orders].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,6);
   document.getElementById('recentSales').innerHTML = recent.length
-    ? recent.map(o=>`<div class="top-item"><span class="top-item-name">${new Date(o.created_at).toLocaleDateString('it-IT')}</span><span class="top-item-val">€${Number(o.total||0).toFixed(2)}</span></div>`).join('')
+    ? recent.map(o=>`<div class="top-item"><span class="top-item-name">${new Date(o.created_at).toLocaleDateString('it-IT')}</span><span class="top-item-val">€${(Number(o.total||0)/100).toFixed(2)}</span></div>`).join('')
     : '<div style="color:var(--muted);font-size:.8rem;padding:.5rem 0;">No orders yet</div>';
 }
 
