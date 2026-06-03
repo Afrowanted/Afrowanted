@@ -3773,13 +3773,19 @@ function renderPackagingOptions() {
   if (!container || !list) return;
   if (_packagingOptions.length === 0) { container.style.display = 'none'; return; }
   container.style.display = 'block';
-  list.innerHTML = _packagingOptions.map(opt => `
+  list.innerHTML = _packagingOptions.map(opt => {
+    // Mappa nomi salvati in Supabase alle chiavi di traduzione
+    let label = opt.name;
+    const nameLower = opt.name.toLowerCase();
+    if(nameLower.includes('compensato') || nameLower.includes('wood') || nameLower.includes('plywood')) label = t('pkg_wood');
+    else if(nameLower.includes('cartone') || nameLower.includes('double') || nameLower.includes('doppio')) label = t('pkg_double');
+    return `
     <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.4rem 0;">
       <input type="checkbox" id="pkg-${opt.name}" onchange="togglePackaging('${opt.name}',${opt.price})" style="accent-color:var(--gold);width:14px;height:14px;">
-      <span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--cream);flex:1;">${opt.name}</span>
+      <span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--cream);flex:1;">${label}</span>
       <span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--gold);">+€${Number(opt.price).toFixed(2)}</span>
-    </label>
-  `).join('');
+    </label>`;
+  }).join('');
 }
 
 function togglePackaging(name, price) {
