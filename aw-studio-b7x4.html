@@ -1418,7 +1418,7 @@ function validateForm(){
   const req=[{id:'fTitle',label:'Title'},{id:'fPrice',label:'Price'}];
   for(const f of req){if(!document.getElementById(f.id).value.trim()){showToast(f.label+' is required',true);document.getElementById(f.id).focus();return false;}}
   if(getSelectedCats().length===0){showToast('Select at least one category',true);return false;}
-  if(!document.getElementById('imgUrl').value){showToast('Please upload a cover photo',true);return false;}
+  // foto non obbligatoria — si può aggiungere in seguito
   return true;
 }
 async function submitRecord(){
