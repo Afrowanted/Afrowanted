@@ -1137,6 +1137,7 @@ let _photoUrls = [null,null,null,null,null];
 
 // Stato crop corrente
 let _cropSlotIndex = null;
+let _pendingMultiPhotos = null;
 let _cropBlob = null;
 let _cropRetakeInput = null;
 
@@ -1149,7 +1150,7 @@ function initPhotoSlots(){
     slot.className = 'photo-slot' + (i===0?' cover-slot':'');
     slot.id = 'slot-'+i;
     slot.innerHTML = `
-      <input type="file" accept="image/*" id="slot-input-${i}" onchange="handleSlotSelect(event,${i})" style="display:none;">
+      <input type="file" accept="image/*" id="slot-input-${i}" onchange="handleSlotSelect(event,${i})" style="display:none;"${i===0?' multiple':''}>
       <input type="file" accept="image/*" capture="environment" id="slot-camera-${i}" onchange="handleSlotSelect(event,${i})" style="display:none;">
       <div class="photo-slot-empty" id="slot-empty-${i}" onclick="openPhotoSource(${i})">
         <span>${i===0?'📷':'＋'}</span>
@@ -1183,10 +1184,32 @@ function photoSourceClose(){
 }
 
 function handleSlotSelect(e, i){
-  const file = e.target.files[0]; if(!file) return;
+  const files = e.target.files;
+  if(!files || files.length === 0) return;
+  // Se più file selezionati, assegnali agli slot in sequenza partendo da i
+  if(files.length > 1){
+    Array.from(files).forEach((file, offset) => {
+      const slotIdx = i + offset;
+      if(slotIdx >= MAX_PHOTOS) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        if(offset === 0){
+          _cropSlotIndex = slotIdx;
+          _cropRetakeInput = e.target;
+          showCropPreview(ev.target.result, slotIdx);
+        } else {
+          // Carica direttamente senza crop per gli slot aggiuntivi
+          _pendingMultiPhotos = _pendingMultiPhotos || {};
+          _pendingMultiPhotos[slotIdx] = ev.target.result;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    return;
+  }
+  const file = files[0];
   _cropSlotIndex = i;
   _cropRetakeInput = e.target;
-  // Leggi immagine e mostra crop preview
   const reader = new FileReader();
   reader.onload = ev => showCropPreview(ev.target.result, i);
   reader.readAsDataURL(file);
@@ -1265,6 +1288,15 @@ function cropConfirm(){
   // Upload al Raspberry
   uploadSlotToRaspberry(_cropBlob, i);
   _cropBlob = null;
+
+  // Processa foto extra dalla selezione multipla
+  if(_pendingMultiPhotos){
+    Object.entries(_pendingMultiPhotos).forEach(([slotIdx, dataUrl]) => {
+      const idx = parseInt(slotIdx);
+      showCropPreview(dataUrl, idx);
+    });
+    _pendingMultiPhotos = null;
+  }
 }
 
 // ── UPLOAD RASPBERRY ──
@@ -1625,7 +1657,7 @@ async function renderCatalogue(q='',catFilter='',visFilter='',sortMode='date-des
       </td>
       <td>${r.ribbon?`<span class="tbl-ribbon">${r.ribbon}</span>`:'-'}</td>
       <td><label class="vis-toggle"><input type="checkbox" ${r.visible?'checked':''} onchange="toggleVisible(${r.id},this.checked)"><span class="vis-slider"></span></label></td>
-      <td>${r.avail?`<button class="tbl-btn sell" onclick="markSold(${r.id})">Mark Sold</button>`:`<button class="tbl-btn" onclick="markAvailable(${r.id})" style="background:rgba(201,148,58,0.15);border-color:var(--gold);color:var(--gold);">↩ Relist</button>`}</td>
+      <td>${r.avail?`<button class="tbl-btn sell" onclick="markSold(${r.id})">Mark Sold</button>`:`<span style="font-family:'Space Mono',monospace;font-size:.65rem;font-weight:bold;color:#e74c3c;letter-spacing:1px;">SOLD</span>`}</td>
       <td><span class="tbl-meta" title="${r.archive}">${r.archive?r.archive.substring(0,12)+(r.archive.length>12?'…':''):'-'}</span></td>
       <td>
         <div class="tbl-actions">
@@ -1862,7 +1894,7 @@ function markSold(id){
     const row=document.getElementById('row-'+id);
     if(row){
       const sellCell=row.querySelector('.tbl-btn.sell, .tbl-btn[onclick*="markSold"]')?.closest('td');
-      if(sellCell) sellCell.innerHTML=`<button class="tbl-btn" onclick="markAvailable(${id})" style="background:rgba(201,148,58,0.15);border-color:var(--gold);color:var(--gold);">↩ Relist</button>`;
+      if(sellCell) sellCell.innerHTML=`<span style="font-family:'Space Mono',monospace;font-size:.65rem;font-weight:bold;color:#e74c3c;letter-spacing:1px;">SOLD</span>`;
       const badge=row.querySelector('.status-badge');
       if(badge){ badge.className='status-badge sold'; badge.textContent='SOLD'; }
       const visToggle=row.querySelector('.vis-toggle input');
