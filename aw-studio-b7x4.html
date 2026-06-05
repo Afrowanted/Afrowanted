@@ -481,7 +481,10 @@
     <div class="form-grid">
 
       <div class="field full">
-        <label>Photos <span class="req">*</span> <span style="font-size:.7rem;color:var(--muted);font-weight:normal;">— up to 5 (first = cover)</span></label>
+        <label>Photos <span class="req">*</span> <span style="font-size:.7rem;color:var(--muted);font-weight:normal;">— up to 5 (first = cover)</span>
+          <button type="button" onclick="document.getElementById('multiPhotoInput').click()" style="margin-left:.75rem;background:rgba(201,148,58,0.15);border:1px solid var(--gold);color:var(--gold);font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:1px;text-transform:uppercase;padding:.25rem .6rem;cursor:pointer;vertical-align:middle;">＋ Upload multiple</button>
+          <input type="file" id="multiPhotoInput" accept="image/*" multiple style="display:none;" onchange="handleMultiPhotoInput(this)">
+        </label>
         <div id="photoSlots"></div>
         <input type="hidden" id="imgUrl">
         <input type="hidden" id="imgUrls">
@@ -1299,7 +1302,66 @@ function cropConfirm(){
   }
 }
 
-// ── UPLOAD RASPBERRY ──
+// ── UPLOAD MULTIPLO ──
+let _multiQueue = [];
+let _multiQueueIdx = 0;
+
+function handleMultiPhotoInput(input){
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  // Trova primo slot libero
+  let firstFree = 0;
+  for(let i=0;i<MAX_PHOTOS;i++){
+    if(!document.getElementById('slot-'+i)?.classList.contains('filled')){
+      firstFree = i; break;
+    }
+  }
+  _multiQueue = [];
+  _multiQueueIdx = firstFree;
+  // Leggi tutti i file come dataURL
+  let loaded = 0;
+  files.slice(0, MAX_PHOTOS - firstFree).forEach((file, offset) => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      _multiQueue[offset] = ev.target.result;
+      loaded++;
+      if(loaded === Math.min(files.length, MAX_PHOTOS - firstFree)){
+        // Inizia il crop dal primo
+        _processNextMultiPhoto();
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function _processNextMultiPhoto(){
+  if(!_multiQueue.length) return;
+  const dataUrl = _multiQueue.shift();
+  _cropSlotIndex = _multiQueueIdx;
+  _multiQueueIdx++;
+  showCropPreview(dataUrl, _cropSlotIndex);
+}
+
+// Override cropConfirm per gestire la coda multipla
+const _origCropConfirm = cropConfirm;
+cropConfirm = function(){
+  if(!_cropBlob) return;
+  const i = _cropSlotIndex;
+  document.getElementById('cropOverlay').classList.add('hidden');
+  const url = URL.createObjectURL(_cropBlob);
+  document.getElementById('slot-img-'+i).src = url;
+  document.getElementById('slot-img-'+i).style.display = 'block';
+  document.getElementById('slot-empty-'+i).style.display = 'none';
+  document.getElementById('slot-rm-'+i).style.display = 'flex';
+  document.getElementById('slot-'+i).classList.add('filled');
+  uploadSlotToRaspberry(_cropBlob, i);
+  _cropBlob = null;
+  // Se c'è coda multipla, processa la prossima
+  if(_multiQueue.length > 0){
+    setTimeout(_processNextMultiPhoto, 300);
+  }
+};
 async function uploadSlotToRaspberry(blob, i){
   const statusEl = document.getElementById('slot-status-'+i);
   statusEl.textContent = '↑ Caricamento…'; statusEl.style.display='block';
