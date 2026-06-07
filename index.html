@@ -2303,15 +2303,20 @@ function openModal(id, opts = {}) {
   document.body.style.overflow = 'hidden';
   document.body.style.position = 'fixed';
   document.body.style.width = '100%';
+  document.body.style.top = `-${window.scrollY}px`;
+  document.body.dataset.scrollY = window.scrollY;
   if (!opts.silent) history.pushState(null, '', '#record/' + id);
   updateSEO({ record: r });
 }
 
 function closeModal() {
+  const scrollY = parseInt(document.body.dataset.scrollY || '0');
   document.getElementById('modal').classList.remove('open');
   document.body.style.overflow = '';
   document.body.style.position = '';
   document.body.style.width = '';
+  document.body.style.top = '';
+  window.scrollTo(0, scrollY);
   stopPlay();
   // restore category hash when closing modal
   const hash = activeView === 'newin' ? '#' : '#' + activeView;
