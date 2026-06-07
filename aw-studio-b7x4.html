@@ -2017,6 +2017,15 @@ function populateExceptionSelect() {
   });
 }
 
+function renderExceptions(shippingData) {
+  document.getElementById('exceptionsBody').innerHTML=_exceptionCountries.map(c=>`
+    <tr>
+      <td><strong style="color:var(--cream);">${c}</strong></td>
+      ${WEIGHTS.map(w=>`<td><input type="number" min="0" step="0.5" id="exc_${c}_${w}" value="${shippingData?.exceptions?.[c]?.[w]||''}" placeholder="€"></td>`).join('')}
+      <td><button onclick="removeExceptionCountry('${c}')" style="background:none;border:none;color:var(--red-light);cursor:pointer;font-size:.9rem;" title="Rimuovi">✕</button></td>
+    </tr>`).join('');
+}
+
 function addExceptionCountry() {
   const sel = document.getElementById('addExceptionSelect');
   const country = sel?.value;
@@ -2147,12 +2156,7 @@ async function initShipping(){
   const savedExceptions = Object.keys(shippingData?.exceptions || {});
   savedExceptions.forEach(c => { if (!_exceptionCountries.includes(c)) _exceptionCountries.push(c); });
   populateExceptionSelect();
-  document.getElementById('exceptionsBody').innerHTML=_exceptionCountries.map(c=>`
-    <tr>
-      <td><strong style="color:var(--cream);">${c}</strong></td>
-      ${WEIGHTS.map(w=>`<td><input type="number" min="0" step="0.5" id="exc_${c}_${w}" value="${shippingData?.exceptions?.[c]?.[w]||''}" placeholder="€"></td>`).join('')}
-      <td><button onclick="removeExceptionCountry('${c}')" style="background:none;border:none;color:var(--red-light);cursor:pointer;font-size:.9rem;" title="Rimuovi">✕</button></td>
-    </tr>`).join('');
+  renderExceptions(shippingData);
   document.getElementById('packagingList').innerHTML=PACKAGING_DEF.map(p=>{
     const sp=shippingData?.packaging?.[p.id];
     return`<div class="packaging-row"><span class="packaging-name">${p.name}</span><div class="packaging-price"><span style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--muted);">+€</span><input type="number" min="0" step="0.1" id="pack_price_${p.id}" value="${sp?.price??p.price}"></div><label class="pack-toggle"><input type="checkbox" id="pack_active_${p.id}" ${(sp?.active??p.active)?'checked':''}><span class="pack-slider"></span></label></div>`;
