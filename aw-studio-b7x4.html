@@ -2056,28 +2056,29 @@ function calcOrderWeightKg(cartItems) {
 function getShippingCost(weightKg, country, shippingData) {
   if (!shippingData) return null;
   
-  // Determina zona
   const exceptions = shippingData.exceptions || {};
   const zones = shippingData.zones || {};
   
-  let zone = 'Resto del mondo';
+  // Controlla eccezioni specifiche (include Canary Islands e Hawaii)
   if (exceptions[country]) {
-    // Usa tariffa eccezione paese
     const exc = exceptions[country];
     const band = getWeightBand(weightKg);
     return exc[band] || null;
   }
   
-  // Zona standard
+  let zone = 'Resto del mondo';
   if (country === 'Italy' || country === 'Italia') zone = 'Italia';
   else if (['Austria','Belgium','France','Germany','Greece','Ireland','Netherlands',
             'Portugal','Spain','Finland','Sweden','Denmark','Norway','Switzerland',
             'Poland','Czech Republic','Hungary','Croatia','Romania','Bulgaria',
-            'United Kingdom','Luxembourg','Slovakia','Slovenia','Estonia','Latvia','Lithuania'].includes(country)) {
+            'United Kingdom','Luxembourg','Slovakia','Slovenia','Estonia','Latvia',
+            'Lithuania','Albania','Serbia'].includes(country)) {
     zone = 'Europa';
   } else if (['United States','Canada','Mexico'].includes(country)) {
     zone = 'Nord America';
   }
+  // Canary Islands e Hawaii: usano Resto del mondo se non hanno eccezione specifica
+  // (ma normalmente avranno un'eccezione configurata dall'admin)
   
   const band = getWeightBand(weightKg);
   return zones[zone]?.[band] || null;

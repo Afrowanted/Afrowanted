@@ -1901,7 +1901,8 @@
                 <option value="Portugal">Portugal</option>
                 <option value="Slovakia">Slovakia</option>
                 <option value="Slovenia">Slovenia</option>
-                <option value="Spain">Spain / España</option>
+                <option value="Spain">Spain / España (Peninsula)</option>
+                <option value="Canary Islands">Spain / Canary Islands (Islas Canarias)</option>
               </optgroup>
               <optgroup label="── Other Europe ──">
                 <option value="Albania">Albania</option>
@@ -1919,7 +1920,8 @@
                 <option value="United Kingdom">United Kingdom</option>
               </optgroup>
               <optgroup label="── Americas ──">
-                <option value="United States">United States</option>
+                <option value="United States">United States (Continental)</option>
+                <option value="Hawaii">United States – Hawaii / Alaska</option>
                 <option value="Canada">Canada</option>
                 <option value="Brazil">Brazil</option>
                 <option value="Argentina">Argentina</option>
@@ -2493,14 +2495,18 @@ function getShippingCost(weightKg, country, shippingData) {
   if (!shippingData?.zones) return null;
   const exceptions = shippingData.exceptions || {};
   const band = getWeightBand(weightKg);
+  // Controlla eccezioni specifiche (include Canary Islands e Hawaii salvate dall'admin)
   if (exceptions[country]?.[band]) return exceptions[country][band];
   let zone = 'Resto del mondo';
   if (['Italy','Italia'].includes(country)) zone = 'Italia';
   else if (['Austria','Belgium','France','Germany','Greece','Ireland','Netherlands',
     'Portugal','Spain','Finland','Sweden','Denmark','Norway','Switzerland',
     'Poland','Czech Republic','Hungary','Croatia','Romania','Bulgaria',
-    'United Kingdom','Luxembourg','Slovakia','Slovenia','Estonia','Latvia','Lithuania'].includes(country)) zone = 'Europa';
+    'United Kingdom','Luxembourg','Slovakia','Slovenia','Estonia','Latvia','Lithuania',
+    'Albania','Serbia'].includes(country)) zone = 'Europa';
   else if (['United States','Canada','Mexico'].includes(country)) zone = 'Nord America';
+  // Canary Islands e Hawaii: se non hanno eccezione specifica, usano Resto del mondo
+  else if (['Canary Islands','Hawaii'].includes(country)) zone = 'Resto del mondo';
   return shippingData.zones[zone]?.[band] || null;
 }
 
