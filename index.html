@@ -2300,11 +2300,12 @@ function openModal(id, opts = {}) {
   stopPlay();
   setupAudio(r.audio || null);
   document.getElementById('modal').classList.add('open');
+  const _sy = window.scrollY;
   document.body.style.overflow = 'hidden';
   document.body.style.position = 'fixed';
   document.body.style.width = '100%';
-  document.body.style.top = `-${window.scrollY}px`;
-  document.body.dataset.scrollY = window.scrollY;
+  document.body.style.top = `-${_sy}px`;
+  document.body.dataset.scrollY = _sy;
   if (!opts.silent) history.pushState(null, '', '#record/' + id);
   updateSEO({ record: r });
 }
