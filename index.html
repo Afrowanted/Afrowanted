@@ -2010,14 +2010,19 @@ function applySort(list) {
 }
 
 function getList() {
-  const q = searchQ.toLowerCase();
+  const q = searchQ.toLowerCase().trim();
   return RECORDS.filter(r => {
     if (!r.avail) return false;
     if (q) {
-      return r.label.toLowerCase().includes(q) ||
-             r.title.toLowerCase().includes(q) ||
-             (r.country||'').toLowerCase().includes(q) ||
-             (r.archive||'').toLowerCase().includes(q);
+      // Supporta ricerca multi-parola: tutte le parole devono essere presenti
+      const words = q.split(/\s+/).filter(Boolean);
+      const haystack = [
+        r.label || '',
+        r.title || '',
+        r.country || '',
+        r.archive || ''
+      ].join(' ').toLowerCase();
+      return words.every(w => haystack.includes(w));
     }
     return matchesView(r, activeView);
   });
