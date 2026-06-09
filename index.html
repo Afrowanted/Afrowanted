@@ -2387,6 +2387,7 @@ function togglePlay() {
 
   if (audio.paused) {
     // show spinner while loading
+    stopAllAudio();
     btn.innerHTML = LOAD_SVG;
     const playPromise = audio.play();
     if (playPromise !== undefined) {
@@ -2409,15 +2410,37 @@ function seekAudio(e) {
   audio.currentTime = pct * audio.duration;
 }
 
-function stopPlay() {
-  const audio = getAudioEl();
-  if (audio) { audio.pause(); audio.currentTime = 0; }
-  const btn = getPlayBtn();
-  if (btn) { btn.innerHTML = PLAY_SVG; btn.disabled = false; btn.style.opacity = '1'; }
-  const fill = getFill();
-  if (fill) { fill.style.transition = 'none'; fill.style.width = '0%'; }
-  const lbl = getLabel();
-  if (lbl) lbl.textContent = 'PREVIEW';
+// ── GLOBAL AUDIO MANAGER ──
+// Garantisce che un solo audio suoni alla volta
+function stopAllAudio() {
+  // Ferma modal player
+  const modalAudio = getAudioEl();
+  if (modalAudio && !modalAudio.paused) {
+    modalAudio.pause();
+    modalAudio.currentTime = 0;
+    const btn = getPlayBtn();
+    if (btn) { btn.innerHTML = PLAY_SVG; btn.disabled = false; btn.style.opacity = '1'; }
+    const fill = getFill();
+    if (fill) { fill.style.transition = 'none'; fill.style.width = '0%'; }
+    const lbl = getLabel();
+    if (lbl) lbl.textContent = 'PREVIEW';
+  }
+  // Ferma radio
+  const radioAudio = document.getElementById('radioAudio');
+  if (radioAudio && !radioAudio.paused) {
+    radioAudio.pause();
+    _radioPlaying = false;
+    const btn = document.getElementById('radioHeaderBtn');
+    if (btn) btn.classList.remove('playing');
+    const lbl = document.getElementById('radioHeaderLabel');
+    if (lbl) lbl.textContent = typeof t === 'function' ? t('listen_catalogue') : 'Listen';
+  }
+  // Ferma card preview
+  if (_cardPreviewAudio) {
+    _cardPreviewAudio.pause();
+    _cardPreviewAudio = null;
+    _cardPreviewId = null;
+  }
 }
 
 // ── CARD PREVIEW AUDIO ──
@@ -2436,7 +2459,7 @@ function cardPlayPreview(id) {
   }
 
   // Ferma eventuale preview precedente
-  if (_cardPreviewAudio) { _cardPreviewAudio.pause(); _cardPreviewAudio = null; }
+  stopAllAudio();
 
   _cardPreviewId = id;
   _cardPreviewAudio = new Audio(r.audio);
@@ -3639,6 +3662,7 @@ function radioPlay(record) {
   audio.onended = () => radioNext();
   audio.onerror = () => setTimeout(radioNext, 800);
 
+  stopAllAudio();
   audio.play().then(() => {
     _radioPlaying = true;
     const btn = document.getElementById('radioHeaderBtn');
