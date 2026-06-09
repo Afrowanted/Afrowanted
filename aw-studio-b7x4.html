@@ -622,6 +622,8 @@
     <div class="mob-context-menu" id="mobContextMenu">
       <div class="mob-context-title" id="mobCtxTitle">—</div>
       <div class="mob-context-item" onclick="mobMenuEdit()"><span class="mob-ctx-icon">✏️</span> Edit</div>
+      <div class="mob-context-item" id="mobCtxVisible" onclick="mobMenuToggleVisible()"><span class="mob-ctx-icon">👁</span> <span id="mobCtxVisibleLabel">Toggle Visible</span></div>
+      <div class="mob-context-item" id="mobCtxSold" onclick="mobMenuToggleSold()"><span class="mob-ctx-icon">🔴</span> <span id="mobCtxSoldLabel">Mark Sold</span></div>
       <div class="mob-context-item" onclick="mobMenuDuplicate()"><span class="mob-ctx-icon">📋</span> Duplicate</div>
       <div class="mob-context-item danger" onclick="mobMenuDelete()"><span class="mob-ctx-icon">🗑️</span> Delete</div>
     </div>
@@ -1615,9 +1617,36 @@ let _mobMenuRecords = [];
 function openMobMenu(id, title) {
   _mobMenuRecordId = id;
   document.getElementById('mobCtxTitle').textContent = title;
+  // Aggiorna label visible e sold in base allo stato attuale
+  const r = _allRecords.find(x => x.id === id);
+  if(r) {
+    document.getElementById('mobCtxVisibleLabel').textContent = r.visible ? 'Set Draft' : 'Publish';
+    document.getElementById('mobCtxSoldLabel').textContent = r.available !== false ? 'Mark Sold' : 'Relist ↩';
+  }
+  document.getElementById('mobCtxOverlay').style.display = 'block';
   document.getElementById('mobContextMenu').classList.add('open');
-  document.getElementById('mobCtxOverlay').classList.add('open');
 }
+
+function mobMenuToggleVisible() {
+  closeMobMenu();
+  const id = _mobMenuRecordId;
+  const r = _allRecords.find(x => x.id === id);
+  if(!r) return;
+  toggleVisible(id, !r.visible);
+}
+
+function mobMenuToggleSold() {
+  closeMobMenu();
+  const id = _mobMenuRecordId;
+  const r = _allRecords.find(x => x.id === id);
+  if(!r) return;
+  if(r.available !== false) {
+    markSold(id);
+  } else {
+    markAvailable(id);
+  }
+}
+
 function closeMobMenu() {
   document.getElementById('mobContextMenu').classList.remove('open');
   document.getElementById('mobCtxOverlay').classList.remove('open');
@@ -1719,7 +1748,7 @@ async function renderCatalogue(q='',catFilter='',visFilter='',sortMode='date-des
       </td>
       <td>${r.ribbon?`<span class="tbl-ribbon">${r.ribbon}</span>`:'-'}</td>
       <td><label class="vis-toggle"><input type="checkbox" ${r.visible?'checked':''} onchange="toggleVisible(${r.id},this.checked)"><span class="vis-slider"></span></label></td>
-      <td>${r.avail?`<button class="tbl-btn sell" onclick="markSold(${r.id})">Mark Sold</button>`:`<span style="font-family:'Space Mono',monospace;font-size:.65rem;font-weight:bold;color:#e74c3c;letter-spacing:1px;">SOLD</span>`}</td>
+      <td>${r.avail?`<button class="tbl-btn sell" onclick="markSold(${r.id})">Mark Sold</button>`:`<button class="tbl-btn" onclick="markAvailable(${r.id})" style="background:rgba(231,76,60,0.15);border-color:#e74c3c;color:#e74c3c;font-weight:bold;">SOLD ↩</button>`}</td>
       <td><span class="tbl-meta" title="${r.archive}">${r.archive?r.archive.substring(0,12)+(r.archive.length>12?'…':''):'-'}</span></td>
       <td>
         <div class="tbl-actions">
@@ -1956,7 +1985,7 @@ function markSold(id){
     const row=document.getElementById('row-'+id);
     if(row){
       const sellCell=row.querySelector('.tbl-btn.sell, .tbl-btn[onclick*="markSold"]')?.closest('td');
-      if(sellCell) sellCell.innerHTML=`<span style="font-family:'Space Mono',monospace;font-size:.65rem;font-weight:bold;color:#e74c3c;letter-spacing:1px;">SOLD</span>`;
+      if(sellCell) sellCell.innerHTML=`<button class="tbl-btn" onclick="markAvailable(${id})" style="background:rgba(231,76,60,0.15);border-color:#e74c3c;color:#e74c3c;font-weight:bold;">SOLD ↩</button>`;
       const badge=row.querySelector('.status-badge');
       if(badge){ badge.className='status-badge sold'; badge.textContent='SOLD'; }
       const visToggle=row.querySelector('.vis-toggle input');

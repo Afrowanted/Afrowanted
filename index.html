@@ -2083,6 +2083,7 @@ async function loadFromSupabase() {
         });
       });
       supabaseLoaded = true;
+      loadCart(); // ripristina carrello dal localStorage
     }
   } catch(e) {
     console.log('Supabase not available:', e.message);
@@ -2091,7 +2092,7 @@ async function loadFromSupabase() {
   _dataLoading = false;
   updateCounts();
   readHash();
-  initCustomerSession(); // carica sessione cliente
+  initCustomerSession();
 }
 
 // ── RENDER ──
@@ -2674,12 +2675,34 @@ function addToCart(id) {
   const r = RECORDS.find(x => x.id === id);
   if (!r || !r.avail) return;
   if (cart.find(x => x.id === id)) { showToast(t('already_in_cart')); return; }
-  cart.push(r);
+  // Usa il prezzo scontato se disponibile
+  const dp = getDiscountedPrice(r);
+  const cartItem = Object.assign({}, r, { price: dp });
+  cart.push(cartItem);
+  saveCart();
   renderCart();
   showToast(t('added_to_cart') + ': ' + r.label);
 }
 
-function removeFromCart(id) { cart = cart.filter(x => x.id !== id); renderCart(); }
+function saveCart() {
+  try { localStorage.setItem('aw_cart', JSON.stringify(cart.map(r => r.id))); } catch(e) {}
+}
+
+function loadCart() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('aw_cart') || '[]');
+    saved.forEach(id => {
+      const r = RECORDS.find(x => x.id === id);
+      if(r && r.avail && !cart.find(x => x.id === id)) {
+        const dp = getDiscountedPrice(r);
+        cart.push(Object.assign({}, r, { price: dp }));
+      }
+    });
+    if(cart.length) renderCart();
+  } catch(e) {}
+}
+
+function removeFromCart(id) { cart = cart.filter(x => x.id !== id); saveCart(); renderCart(); }
 
 function renderCart() {
   const n = cart.length;
