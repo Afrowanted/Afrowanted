@@ -2294,6 +2294,14 @@ function openModal(id, opts = {}) {
   const r = RECORDS.find(x => x.id === id);
   if (!r) return;
   currentRecord = r;
+  // GA4: view_item
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'view_item', {
+      currency: 'EUR',
+      value: (r.price || 0) / 100,
+      items: [{ item_id: String(r.id), item_name: r.label || r.title, price: (r.price || 0) / 100 }]
+    });
+  }
 
   const imgs = r.imgs && r.imgs.length ? r.imgs : (r.img ? [r.img] : []);
   setupGallery(imgs);
@@ -2715,6 +2723,14 @@ function addToCart(id) {
   saveCart();
   renderCart();
   showToast(t('added_to_cart') + ': ' + r.label);
+  // GA4: add_to_cart
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'add_to_cart', {
+      currency: 'EUR',
+      value: (cartItem.price || 0) / 100,
+      items: [{ item_id: String(r.id), item_name: r.label || r.title, price: (cartItem.price || 0) / 100 }]
+    });
+  }
 }
 
 function saveCart() {
@@ -2757,7 +2773,17 @@ function renderCart() {
 function toggleCart() {
   const open = document.getElementById('cartPanel').classList.toggle('open');
   document.body.style.overflow = open ? 'hidden' : '';
-  if (open) updateCartShipping();
+  if (open) {
+    updateCartShipping();
+    // GA4: view_cart
+    if (typeof gtag !== 'undefined' && cart.length) {
+      gtag('event', 'view_cart', {
+        currency: 'EUR',
+        value: cart.reduce((s, r) => s + (r.price || 0) / 100, 0),
+        items: cart.map(r => ({ item_id: String(r.id), item_name: r.label || r.title, price: (r.price || 0) / 100 }))
+      });
+    }
+  }
 }
 
 // ── TOAST ──
@@ -4044,6 +4070,15 @@ function renderPayPalButton() {
 
     createOrder: (data, actions) => {
       if (!validateCheckoutForm()) return Promise.reject('form');
+      // GA4: begin_checkout
+      if (typeof gtag !== 'undefined' && cart.length) {
+        gtag('event', 'begin_checkout', {
+          currency: 'EUR',
+          value: cart.reduce((s, r) => s + (r.price || 0) / 100, 0),
+          payment_type: 'paypal',
+          items: cart.map(r => ({ item_id: String(r.id), item_name: r.label || r.title, price: (r.price || 0) / 100 }))
+        });
+      }
       const subtotal = cart.reduce((s, r) => s + r.price, 0);
       const country = document.getElementById('cfCountry')?.value || _userCountry || null;
       let shipping = 0;
@@ -4181,6 +4216,16 @@ async function handleOrderComplete(order) {
   }
 
   // 4. Mostra conferma e svuota carrello
+  // GA4: purchase
+  if (typeof gtag !== 'undefined') {
+    const subtotalForGA = cart.reduce((s, r) => s + (r.price || 0) / 100, 0);
+    gtag('event', 'purchase', {
+      transaction_id: order.id || String(Date.now()),
+      currency: 'EUR',
+      value: subtotalForGA,
+      items: cart.map(r => ({ item_id: String(r.id), item_name: r.label || r.title, price: (r.price || 0) / 100 }))
+    });
+  }
   cart = [];
   renderCart();
   render();
@@ -5100,6 +5145,15 @@ async function handleWisePayment() {
       return;
     }
   }
+  // GA4: begin_checkout
+  if (typeof gtag !== 'undefined' && cart.length) {
+    gtag('event', 'begin_checkout', {
+      currency: 'EUR',
+      value: cart.reduce((s, r) => s + (r.price || 0) / 100, 0),
+      payment_type: 'wise',
+      items: cart.map(r => ({ item_id: String(r.id), item_name: r.label || r.title, price: (r.price || 0) / 100 }))
+    });
+  }
 
   // Max 5 dischi per ordine Wise
   if (cart.length > 5) {
@@ -5209,6 +5263,16 @@ async function handleWisePayment() {
     // Mostra conferma
     document.getElementById('checkoutOverlay').style.display = 'none';
     document.body.style.overflow = '';
+    // GA4: purchase (Wise reservation)
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'purchase', {
+        transaction_id: orderCode,
+        currency: 'EUR',
+        value: total,
+        payment_type: 'wise',
+        items: cart.map(r => ({ item_id: String(r.id), item_name: r.label || r.title, price: (r.price || 0) / 100 }))
+      });
+    }
     cart = [];
     renderCart();
     render();
@@ -5279,6 +5343,15 @@ async function handleStripePayment() {
       document.getElementById(f).focus();
       return;
     }
+  }
+  // GA4: begin_checkout
+  if (typeof gtag !== 'undefined' && cart.length) {
+    gtag('event', 'begin_checkout', {
+      currency: 'EUR',
+      value: cart.reduce((s, r) => s + (r.price || 0) / 100, 0),
+      payment_type: 'stripe',
+      items: cart.map(r => ({ item_id: String(r.id), item_name: r.label || r.title, price: (r.price || 0) / 100 }))
+    });
   }
   if (cart.length === 0) { showToast(t('cart_empty')); return; }
 
