@@ -1655,7 +1655,7 @@ function openMobMenu(id, title) {
   const r = _allRecords.find(x => x.id === id);
   if(r) {
     document.getElementById('mobCtxVisibleLabel').textContent = r.visible ? 'Set Draft' : 'Publish';
-    document.getElementById('mobCtxSoldLabel').textContent = r.available !== false ? 'Mark Sold' : 'Relist ↩';
+    document.getElementById('mobCtxSoldLabel').textContent = r.avail !== false ? 'Mark Sold' : 'Relist ↩';
   }
   document.getElementById('mobCtxOverlay').style.display = 'block';
   document.getElementById('mobContextMenu').classList.add('open');
@@ -1674,7 +1674,7 @@ function mobMenuToggleSold() {
   const id = _mobMenuRecordId;
   const r = _allRecords.find(x => x.id === id);
   if(!r) return;
-  if(r.available !== false) {
+  if(r.avail !== false) {
     markSold(id);
   } else {
     markAvailable(id);
@@ -1684,6 +1684,7 @@ function mobMenuToggleSold() {
 function closeMobMenu() {
   document.getElementById('mobContextMenu').classList.remove('open');
   document.getElementById('mobCtxOverlay').classList.remove('open');
+  document.getElementById('mobCtxOverlay').style.display = 'none';
   _mobMenuRecordId = null;
 }
 function mobMenuEdit() { closeMobMenu(); if(_mobMenuRecordId) editRecord(_mobMenuRecordId); }
