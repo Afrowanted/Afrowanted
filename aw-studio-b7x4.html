@@ -13,6 +13,18 @@
     --red:#8b1a0e;--red-light:#c0392b;--green:#2d6a3f;--green-light:#27ae60;
     --border:#251f14;--border2:#2e2818;
   }
+  /* ── DAY MODE ── */
+  body.day-mode {
+    --bg:#f5f0e8;--surface:#ffffff;--surface2:#f0ebe0;--surface3:#e8e0d0;
+    --gold:#a07020;--gold-light:#c08828;--cream:#2a1f0a;
+    --muted:#8a7a5a;--muted2:#c8bca0;--text:#3a2e1a;
+    --red:#8b1a0e;--red-light:#c0392b;--green:#1a5a2e;--green-light:#1e8449;
+    --border:#d8ceb0;--border2:#c8bea0;
+  }
+  /* ── THEME TOGGLE BUTTON ── */
+  .theme-toggle-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:1px;padding:.35rem .65rem;border-radius:2px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:.4rem;flex-shrink:0;}
+  .theme-toggle-btn:hover{border-color:var(--gold);color:var(--gold);}
+  .theme-toggle-icon{font-size:.85rem;line-height:1;}
   *{margin:0;padding:0;box-sizing:border-box;}
   body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-weight:300;min-height:100vh;}
 
@@ -455,6 +467,7 @@
     <span class="admin-logo">AFRO<em>-</em>WANTED</span>
     <span class="admin-badge">Admin</span>
     <button id="vacationHeaderBtn" onclick="toggleVacation()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:1px;padding:.35rem .85rem;border-radius:2px;cursor:pointer;transition:all .2s;" title="Toggle vacation mode">🌴 VACATION</button>
+    <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle day/night mode"><span class="theme-toggle-icon" id="themeIcon">☀️</span><span id="themeLabel">DAY</span></button>
     <button class="logout-btn" onclick="doLogout()">LOGOUT</button>
   </header>
   <div class="vacation-banner-admin" id="vacationBannerAdmin">
@@ -930,6 +943,31 @@
 const SUPABASE_URL   = 'https://gohqfbdepmqacxcfijzl.supabase.co';
 const SUPABASE_KEY   = 'sb_publishable_bI8wUzAGj-YUFMqb4dLldA_NRhQjUzH';
 const PUBLIC_URL = 'https://afrowanted.vercel.app';
+
+// ── THEME (DAY / NIGHT) ──────────────────────────────────────────────────────
+(function(){
+  // Ripristina tema salvato
+  const saved = localStorage.getItem('aw_theme');
+  if(saved === 'day') document.body.classList.add('day-mode');
+})();
+
+function toggleTheme(){
+  const isDay = document.body.classList.toggle('day-mode');
+  localStorage.setItem('aw_theme', isDay ? 'day' : 'night');
+  const icon  = document.getElementById('themeIcon');
+  const label = document.getElementById('themeLabel');
+  if(icon)  icon.textContent  = isDay ? '🌙' : '☀️';
+  if(label) label.textContent = isDay ? 'NIGHT' : 'DAY';
+}
+// Sync icona al caricamento (nel caso day-mode sia già attivo)
+document.addEventListener('DOMContentLoaded', function(){
+  const isDay = document.body.classList.contains('day-mode');
+  const icon  = document.getElementById('themeIcon');
+  const label = document.getElementById('themeLabel');
+  if(icon)  icon.textContent  = isDay ? '🌙' : '☀️';
+  if(label) label.textContent = isDay ? 'NIGHT' : 'DAY';
+});
+// ────────────────────────────────────────────────────────────────────────────
 
 // AUTH — Supabase Auth
 let _authToken = null;

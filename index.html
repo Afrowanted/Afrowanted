@@ -2412,6 +2412,8 @@ function seekAudio(e) {
 
 // ── GLOBAL AUDIO MANAGER ──
 // Garantisce che un solo audio suoni alla volta
+function stopPlay() { stopAllAudio(); }  // alias — stopPlay era il vecchio nome
+
 function stopAllAudio() {
   // Ferma modal player
   const modalAudio = getAudioEl();
