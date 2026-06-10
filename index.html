@@ -4100,6 +4100,10 @@ async function handleOrderComplete(order) {
     shipping_address: `${buyerAddress}, ${buyerZip} ${buyerCity}, ${buyerCountry}`,
     buyer_phone:      buyerPhone,
     record_ids:       cart.map(r => r.id),
+    // Snapshot prezzi effettivamente pagati (scontati) — usato dall'admin
+    items_snapshot:   cart.map(r => ({ id: r.id, label: r.label, price: getDiscountedPrice(r) })),
+    shipping_cost:    shippingCostPaid * 100, // in centesimi
+    packaging_cost:   packagingCostPaid * 100, // in centesimi
     total:            total * 100, // in centesimi
     status:           'pending',
     paypal_order_id:  order.id,
