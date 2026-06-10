@@ -2349,7 +2349,7 @@ async function renderOrders() {
           </div>
           <button class="copy-btn" style="background:var(--gold);color:#000;border:none;" onclick="markShipped(${o.id},'${o.buyer_email||''}','${o.buyer_name||''}')">✈ Mark as Shipped</button>
           <button class="copy-btn" style="background:#c0392b;color:#fff;border:none;" onclick="refundOrder(${o.id},'${o.payment_method||''}','${o.buyer_email||''}')">↩ Refund</button>
-          <button class="copy-btn" style="background:#333;color:#fff;border:1px solid #555;margin-left:.5rem;" onclick="deleteOrder(${o.id})">🗑 Delete</button>
+
         </div>
       </td>
     </tr>`;
@@ -2680,18 +2680,6 @@ async function renderAnalytics() {
         }).join('')
       : '<div style="color:var(--muted);font-size:.8rem;padding:.5rem 0;">No data yet</div>';
   }
-}
-
-// ── DELETE ORDER ──
-async function deleteOrder(id) {
-  if(!confirm('Eliminare questo ordine? Questa azione è irreversibile.')) return;
-  if(!confirm('Conferma definitiva: eliminare ordine #' + id + '?')) return;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`, {
-    method: 'DELETE',
-    headers: {'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + (_authToken||SUPABASE_KEY)}
-  });
-  if(res.ok) { showToast('Ordine eliminato'); renderOrders(); }
-  else showToast('Errore eliminazione', true);
 }
 
 // ── DISCOUNTS ──
