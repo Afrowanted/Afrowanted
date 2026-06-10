@@ -2269,7 +2269,7 @@ async function renderOrders() {
     const shippingParts = [
       o.buyer_name || '',
       o.shipping_address || '',
-      o.buyer_city ? `${o.buyer_zip||''} ${o.buyer_city}`.trim() : (o.buyer_zip||''),
+      [o.buyer_zip, o.buyer_city].filter(Boolean).join(' ') || '',
       o.buyer_country || '',
       o.buyer_phone ? `Phone: ${o.buyer_phone}` : '',
       o.buyer_email ? `Email: ${o.buyer_email}` : ''
@@ -2327,7 +2327,7 @@ async function renderOrders() {
             }
           })()}
           ${o.shipping_cost ? `<div style="padding:3px 0;border-bottom:1px solid var(--border);color:var(--muted);">🚚 Spedizione<span style="float:right;color:var(--cream);">€${(o.shipping_cost/100).toFixed(2)}</span></div>` : '<div style="padding:3px 0;color:var(--muted);font-size:.72rem;">Spedizione: non registrata</div>'}
-          ${o.packaging_options && o.packaging_options.length ? o.packaging_options.map(p => `<div style="padding:3px 0;border-bottom:1px solid var(--border);color:var(--muted);">${p.name||p}<span style="float:right;color:var(--cream);">€${p.price ? (p.price/100).toFixed(2) : '—'}</span></div>`).join('') : ''}
+          ${o.packaging_options && o.packaging_options.length ? o.packaging_options.map(p => `<div style="padding:3px 0;border-bottom:1px solid var(--border);color:var(--muted);">📦 ${p.name||p}<span style="float:right;color:var(--cream);">€${p.price != null ? (p.price/100).toFixed(2) : '—'}</span></div>`).join('') : ''}
         </div>
         <div style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:.5rem;">Shipping Label Data</div>
         <div class="order-copy-block" id="copy-block-${o.id}" style="white-space:pre-line;">${shippingBlock||'No shipping info available'}</div>
@@ -2372,7 +2372,14 @@ function renderMobileOrders(orders) {
     const firstRec = _allRecords.find(r => r.id == (o.record_ids||[])[0]);
     const coverUrl = firstRec?.img_url || firstRec?.img || '';
     // Blocco spedizione
-    const shippingBlock = [o.buyer_name, o.shipping_address, o.buyer_phone, o.buyer_email].filter(Boolean).join(' | ');
+    const shippingBlock = [
+      o.buyer_name,
+      o.shipping_address,
+      [o.buyer_zip, o.buyer_city].filter(Boolean).join(' ') || '',
+      o.buyer_country,
+      o.buyer_phone ? `Phone: ${o.buyer_phone}` : '',
+      o.buyer_email ? `Email: ${o.buyer_email}` : ''
+    ].filter(Boolean).join('\n');
     // Dischi ordinati — usa items_snapshot (prezzi pagati) se disponibile
     const recList = (() => {
       if (o.items_snapshot && o.items_snapshot.length) {

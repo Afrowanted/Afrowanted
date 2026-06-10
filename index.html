@@ -4097,11 +4097,17 @@ async function handleOrderComplete(order) {
   const orderData = {
     buyer_name:       buyerName,
     buyer_email:      buyerEmail,
-    shipping_address: `${buyerAddress}, ${buyerZip} ${buyerCity}, ${buyerCountry}`,
+    // Indirizzo salvato sia come stringa unica che come campi separati
+    shipping_address: buyerAddress,
+    buyer_zip:        buyerZip,
+    buyer_city:       buyerCity,
+    buyer_country:    buyerCountry,
     buyer_phone:      buyerPhone,
     record_ids:       cart.map(r => r.id),
     // Snapshot prezzi effettivamente pagati (scontati) — usato dall'admin
     items_snapshot:   cart.map(r => ({ id: r.id, label: r.label, price: getDiscountedPrice(r) })),
+    // Opzioni packaging scelte dal cliente
+    packaging_options: Object.entries(_selectedPackaging||{}).map(([name, price]) => ({ name, price: price * 100 })),
     shipping_cost:    shippingCostPaid * 100, // in centesimi
     packaging_cost:   packagingCostPaid * 100, // in centesimi
     total:            total * 100, // in centesimi
