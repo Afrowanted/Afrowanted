@@ -1844,15 +1844,13 @@ async function dropOn(e,targetId){
   const targetRow=document.getElementById('row-'+targetRec.id);
   if(dragRow&&targetRow){
     const tbody=dragRow.parentNode;
-    const dragNext=dragRow.nextSibling;
-    const targetNext=targetRow.nextSibling;
-    if(dragNext===targetRow){
-      tbody.insertBefore(targetRow,dragRow);
-    } else if(targetNext===dragRow){
-      tbody.insertBefore(dragRow,targetRow);
+    const rows=[...tbody.children];
+    const di=rows.indexOf(dragRow);
+    const ti=rows.indexOf(targetRow);
+    if(di<ti){
+      targetRow.after(dragRow);
     } else {
-      tbody.insertBefore(dragRow,targetNext);
-      tbody.insertBefore(targetRow,dragNext);
+      tbody.insertBefore(dragRow,targetRow);
     }
   }
   showToast('✓ Order updated');
