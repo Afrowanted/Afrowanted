@@ -1772,7 +1772,7 @@ async function renderCatalogue(q='',catFilter='',visFilter='',sortMode='date-des
   const paginated=filtered.slice(0,_catVisibleCount);
   const hasMore=filtered.length>_catVisibleCount;
   tbody.innerHTML=paginated.map(r=>`
-    <tr id="row-${r.id}" draggable="true" ondragstart="dragStart(event,${r.id})" class="${selectedIds.has(r.id)?'row-selected':''}">
+    <tr id="row-${r.id}" draggable="true" ondragstart="dragStart(event,${r.id})" ondragover="dragOver(event)" ondrop="dropOn(event,${r.id})" ondragleave="dragLeave(event)" class="${selectedIds.has(r.id)?'row-selected':''}">
       <td><span class="drag-handle" title="Drag to reorder">⠿</span></td>
       <td><input class="row-check" type="checkbox" ${selectedIds.has(r.id)?'checked':''} onchange="toggleSelect(${r.id},this.checked)"></td>
       <td><img class="tbl-cover" src="${r.img}" alt="" onerror="this.style.background='var(--surface3)'"></td>
@@ -1803,8 +1803,6 @@ async function renderCatalogue(q='',catFilter='',visFilter='',sortMode='date-des
     </button></td></tr>`:'');
   // Aggiorna griglia mobile
   renderMobileCatalogue(filtered);
-  // Init drag & drop event delegation
-  initDragDrop();
 }
 
 // INLINE PRICE EDIT
@@ -1826,85 +1824,62 @@ async function savePriceEdit(id){
 
 // DRAG & DROP
 let _dragId=null;
-let _dragOverRow=null;
-function dragStart(e,id){
-  _dragId=id;
-  e.currentTarget.classList.add('dragging');
-}
-function initDragDrop(){
-  const tbody=document.querySelector('#catalogueBody');
-  if(!tbody||tbody._dragInited) return;
-  tbody._dragInited=true;
-  tbody.addEventListener('dragover',e=>{
-    e.preventDefault();
-    const tr=e.target.closest('tr[id^="row-"]');
-    if(!tr) return;
-    if(_dragOverRow&&_dragOverRow!==tr) _dragOverRow.classList.remove('drag-over');
-    _dragOverRow=tr;
-    tr.classList.add('drag-over');
+function dragStart(e,id){_dragId=id;e.currentTarget.classList.add('dragging');}
+function dragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
+function dragLeave(e){e.currentTarget.classList.remove('drag-over');}
+async function dropOn(e,targetId){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  if(_dragId===targetId) return;
+
+  // Trova le righe DOM nell'ordine visivo corrente
+  const dragRow=document.getElementById('row-'+_dragId);
+  const targetRow=document.getElementById('row-'+targetId);
+  if(!dragRow||!targetRow) return;
+
+  const tbody=dragRow.parentNode;
+  const domRows=[...tbody.querySelectorAll('tr[id^="row-"]')];
+  const di=domRows.indexOf(dragRow);
+  const ti=domRows.indexOf(targetRow);
+  if(di===ti) return;
+
+  const from=Math.min(di,ti);
+  const to=Math.max(di,ti);
+  const involved=domRows.slice(from,to+1);
+
+  // Raccoglie i date_added attuali nel range
+  const dates=involved.map(row=>{
+    const id=parseInt(row.id.replace('row-',''));
+    return _allRecords.find(r=>r.id===id).date_added;
   });
-  tbody.addEventListener('dragleave',e=>{
-    const tr=e.target.closest('tr[id^="row-"]');
-    if(tr) tr.classList.remove('drag-over');
+
+  // Shift: ruota i date_added nella direzione del movimento
+  let newDates;
+  if(di<ti){
+    // Sposta in basso: il primo prende l'ultimo, gli altri scalano su
+    newDates=[...dates.slice(1),dates[0]];
+  } else {
+    // Sposta in alto: l'ultimo prende il primo, gli altri scalano giù
+    newDates=[dates[dates.length-1],...dates.slice(0,-1)];
+  }
+
+  // Aggiorna in memoria e su Supabase
+  const updates=involved.map((row,i)=>{
+    const id=parseInt(row.id.replace('row-',''));
+    const rec=_allRecords.find(r=>r.id===id);
+    rec.date_added=newDates[i];
+    return sbUpdate(id,{date_added:newDates[i]});
   });
-  tbody.addEventListener('drop',async e=>{
-    e.preventDefault();
-    if(_dragOverRow) _dragOverRow.classList.remove('drag-over');
-    const targetRow=e.target.closest('tr[id^="row-"]');
-    if(!targetRow||!_dragId) return;
-    const targetId=parseInt(targetRow.id.replace('row-',''));
-    if(_dragId===targetId) return;
+  await Promise.all(updates);
+  _dragId=null;
 
-    const dragRow=document.getElementById('row-'+_dragId);
-    if(!dragRow||!targetRow) return;
-    // Rimuovi classe dragging
-    dragRow.classList.remove('dragging');
+  // Sposta la riga nel DOM
+  if(di<ti){
+    targetRow.after(dragRow);
+  } else {
+    tbody.insertBefore(dragRow,targetRow);
+  }
 
-    const domRows=[...tbody.querySelectorAll('tr[id^="row-"]')];
-    const di=domRows.indexOf(dragRow);
-    const ti=domRows.indexOf(targetRow);
-    if(di===ti) return;
-
-    const from=Math.min(di,ti);
-    const to=Math.max(di,ti);
-    const involved=domRows.slice(from,to+1);
-
-    const dates=involved.map(row=>{
-      const id=parseInt(row.id.replace('row-',''));
-      return _allRecords.find(r=>r.id===id).date_added;
-    });
-
-    let newDates;
-    if(di<ti){
-      newDates=[...dates.slice(1),dates[0]];
-    } else {
-      newDates=[dates[dates.length-1],...dates.slice(0,-1)];
-    }
-
-    const updates=involved.map((row,i)=>{
-      const id=parseInt(row.id.replace('row-',''));
-      const rec=_allRecords.find(r=>r.id===id);
-      rec.date_added=newDates[i];
-      return sbUpdate(id,{date_added:newDates[i]});
-    });
-    await Promise.all(updates);
-    _dragId=null;
-    _dragOverRow=null;
-
-    if(di<ti){
-      targetRow.after(dragRow);
-    } else {
-      tbody.insertBefore(dragRow,targetRow);
-    }
-    showToast('✓ Order updated');
-  });
-  tbody.addEventListener('dragend',e=>{
-    // Fallback: rimuovi dragging se drop non è avvenuto
-    document.querySelectorAll('tr.dragging').forEach(r=>r.classList.remove('dragging'));
-    document.querySelectorAll('tr.drag-over').forEach(r=>r.classList.remove('drag-over'));
-    _dragId=null;
-    _dragOverRow=null;
-  });
+  showToast('✓ Order updated');
 }
 
 // EDIT RECORD — loads into main Add Record form
