@@ -1830,29 +1830,55 @@ function dragLeave(e){e.currentTarget.classList.remove('drag-over');}
 async function dropOn(e,targetId){
   e.preventDefault();e.currentTarget.classList.remove('drag-over');
   if(_dragId===targetId) return;
-  const dragRec=_allRecords.find(r=>r.id===_dragId);
-  const targetRec=_allRecords.find(r=>r.id===targetId);
-  if(!dragRec||!targetRec) return;
-  // Swappa i date_added in memoria e su Supabase
-  const tmp=dragRec.date_added;
-  dragRec.date_added=targetRec.date_added;
-  targetRec.date_added=tmp;
-  await Promise.all([sbUpdate(_dragId,{date_added:dragRec.date_added}),sbUpdate(targetId,{date_added:targetRec.date_added})]);
-  _dragId=null;
-  // Swap visivo delle righe nel DOM — senza ri-renderizzare, senza scroll
-  const dragRow=document.getElementById('row-'+dragRec.id);
-  const targetRow=document.getElementById('row-'+targetRec.id);
-  if(dragRow&&targetRow){
-    const tbody=dragRow.parentNode;
-    const rows=[...tbody.children];
-    const di=rows.indexOf(dragRow);
-    const ti=rows.indexOf(targetRow);
-    if(di<ti){
-      targetRow.after(dragRow);
-    } else {
-      tbody.insertBefore(dragRow,targetRow);
-    }
+
+  // Trova le righe DOM nell'ordine visivo corrente
+  const dragRow=document.getElementById('row-'+_dragId);
+  const targetRow=document.getElementById('row-'+targetId);
+  if(!dragRow||!targetRow) return;
+
+  const tbody=dragRow.parentNode;
+  const domRows=[...tbody.querySelectorAll('tr[id^="row-"]')];
+  const di=domRows.indexOf(dragRow);
+  const ti=domRows.indexOf(targetRow);
+  if(di===ti) return;
+
+  const from=Math.min(di,ti);
+  const to=Math.max(di,ti);
+  const involved=domRows.slice(from,to+1);
+
+  // Raccoglie i date_added attuali nel range
+  const dates=involved.map(row=>{
+    const id=parseInt(row.id.replace('row-',''));
+    return _allRecords.find(r=>r.id===id).date_added;
+  });
+
+  // Shift: ruota i date_added nella direzione del movimento
+  let newDates;
+  if(di<ti){
+    // Sposta in basso: il primo prende l'ultimo, gli altri scalano su
+    newDates=[...dates.slice(1),dates[0]];
+  } else {
+    // Sposta in alto: l'ultimo prende il primo, gli altri scalano giù
+    newDates=[dates[dates.length-1],...dates.slice(0,-1)];
   }
+
+  // Aggiorna in memoria e su Supabase
+  const updates=involved.map((row,i)=>{
+    const id=parseInt(row.id.replace('row-',''));
+    const rec=_allRecords.find(r=>r.id===id);
+    rec.date_added=newDates[i];
+    return sbUpdate(id,{date_added:newDates[i]});
+  });
+  await Promise.all(updates);
+  _dragId=null;
+
+  // Sposta la riga nel DOM
+  if(di<ti){
+    targetRow.after(dragRow);
+  } else {
+    tbody.insertBefore(dragRow,targetRow);
+  }
+
   showToast('✓ Order updated');
 }
 
