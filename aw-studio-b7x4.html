@@ -1852,14 +1852,20 @@ async function dropOn(e,targetId){
     return _allRecords.find(r=>r.id===id).date_added;
   });
 
-  // Shift: ruota i date_added nella direzione del movimento
-  let newDates;
+  // Le date_added sono legate alle POSIZIONI (desc): il record in pos i prende dates[i].
+  // Sposta in basso (di<ti): dragged va in pos last, gli altri scalano su di 1.
+  // Sposta in alto (di>ti): dragged va in pos 0, gli altri scalano giù di 1.
+  const newDates=new Array(involved.length);
   if(di<ti){
-    // Sposta in basso: il primo prende l'ultimo, gli altri scalano su
-    newDates=[...dates.slice(1),dates[0]];
+    // Gli altri salgono: involved[k+1] va in pos k → prende dates[k]
+    for(let k=0;k<involved.length-1;k++) newDates[k+1]=dates[k];
+    // Dragged va in pos last → prende dates[last]
+    newDates[0]=dates[involved.length-1];
   } else {
-    // Sposta in alto: l'ultimo prende il primo, gli altri scalano giù
-    newDates=[dates[dates.length-1],...dates.slice(0,-1)];
+    // Gli altri scendono: involved[k] va in pos k+1 → prende dates[k+1]
+    for(let k=0;k<involved.length-1;k++) newDates[k]=dates[k+1];
+    // Dragged va in pos 0 → prende dates[0]
+    newDates[involved.length-1]=dates[0];
   }
 
   // Aggiorna in memoria e su Supabase
