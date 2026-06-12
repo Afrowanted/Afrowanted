@@ -2537,18 +2537,25 @@ function getShippingCost(weightKg, country, shippingData) {
   if (!shippingData?.zones) return null;
   const exceptions = shippingData.exceptions || {};
   const band = getWeightBand(weightKg);
-  // Controlla eccezioni specifiche (include Canary Islands e Hawaii salvate dall'admin)
+  // Mappa nomi italiani → inglesi per compatibilità con dati salvati in precedenza
+  const italianToEnglish = {
+    'Giappone': 'Japan', 'Brasile': 'Brazil', 'Svizzera': 'Switzerland',
+    'Cina': 'China', 'Corea del Sud': 'South Korea', 'UK': 'United Kingdom',
+    'USA': 'United States'
+  };
+  const normalizedCountry = italianToEnglish[country] || country;
+  // Controlla eccezioni specifiche
+  if (exceptions[normalizedCountry]?.[band]) return exceptions[normalizedCountry][band];
   if (exceptions[country]?.[band]) return exceptions[country][band];
   let zone = 'Resto del mondo';
-  if (['Italy','Italia'].includes(country)) zone = 'Italia';
+  if (['Italy','Italia'].includes(normalizedCountry)) zone = 'Italia';
   else if (['Austria','Belgium','France','Germany','Greece','Ireland','Netherlands',
     'Portugal','Spain','Finland','Sweden','Denmark','Norway','Switzerland',
     'Poland','Czech Republic','Hungary','Croatia','Romania','Bulgaria',
     'United Kingdom','Luxembourg','Slovakia','Slovenia','Estonia','Latvia','Lithuania',
-    'Albania','Serbia'].includes(country)) zone = 'Europa';
-  else if (['United States','Canada','Mexico'].includes(country)) zone = 'Nord America';
-  // Canary Islands e Hawaii: se non hanno eccezione specifica, usano Resto del mondo
-  else if (['Canary Islands','Hawaii'].includes(country)) zone = 'Resto del mondo';
+    'Albania','Serbia'].includes(normalizedCountry)) zone = 'Europa';
+  else if (['United States','Canada','Mexico'].includes(normalizedCountry)) zone = 'Nord America';
+  else if (['Canary Islands','Hawaii'].includes(normalizedCountry)) zone = 'Resto del mondo';
   return shippingData.zones[zone]?.[band] || null;
 }
 
@@ -5004,8 +5011,16 @@ async function loadDashboardData() {
         const statusLabel = o.status === 'shipped' ? '✈ Spedito' : o.status === 'completed' ? '✓ Completato' : o.status === 'pending' ? '⏳ In attesa' : o.status || '—';
         return `<div class="acc-order">
           <div class="acc-order-id">ORDER #${o.id?.toString().slice(-6).toUpperCase() || '—'} · ${date}</div>
-          <div class="acc-order-total">€${total}</div>
-          <div style="font-family:'Space Mono',monospace;font-size:.6rem;color:${statusColor};letter-spacing:1px;">${statusLabel}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:.6rem;color:${statusColor};letter-spacing:1px;margin-bottom:.35rem;">${statusLabel}</div>
+          ${o.items_snapshot && o.items_snapshot.length ? `
+            <div style="border-top:1px solid var(--border);padding-top:.5rem;margin-top:.25rem;">
+              ${o.items_snapshot.map(item => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                  <span style="font-size:.75rem;color:var(--cream);flex:1;margin-right:.5rem;">${item.label||item.title||'—'}</span>
+                  <span style="font-family:'Space Mono',monospace;font-size:.68rem;color:var(--gold);white-space:nowrap;">€${item.price||0}</span>
+                </div>`).join('')}
+            </div>` : o.record_ids?.length ? `<div style="font-size:.75rem;color:var(--muted);">${o.record_ids.length} record(s)</div>` : ''}
+          <div class="acc-order-total" style="margin-top:.5rem;text-align:right;">TOTAL €${total}</div>
           ${o.tracking_number ? `<div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:.25rem;">TRACKING: <span style="color:var(--cream);">${o.tracking_number}</span></div>` : ''}
           ${o.tracking_url ? `<a href="${o.tracking_url}" target="_blank" style="font-family:'Space Mono',monospace;font-size:.6rem;color:var(--gold);text-decoration:none;letter-spacing:1px;">${t('track_link')}</a>` : ''}
         </div>`;
