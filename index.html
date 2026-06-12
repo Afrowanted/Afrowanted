@@ -1654,7 +1654,7 @@
       <!-- Galleria foto -->
       <div class="modal-gallery" id="modalGallery">
         <div class="modal-gallery-track" id="galleryTrack">
-          <img id="mImg" src="" alt="" loading="lazy" decoding="async">
+          <img id="mImg" src="" alt="" loading="eager" fetchpriority="high" decoding="sync">
         </div>
         <button class="gallery-btn prev" id="galleryPrev" onclick="galleryNav(-1)" style="display:none">‹</button>
         <button class="gallery-btn next" id="galleryNext" onclick="galleryNav(1)" style="display:none">›</button>
@@ -3482,7 +3482,7 @@ function setupGallery(imgs) {
   if (!track) return;
 
   if (!_galleryImgs.length) {
-    track.innerHTML = `<img id="mImg" src="${PLACEHOLDER}" alt="" loading="lazy" decoding="async">`;
+    track.innerHTML = `<img id="mImg" src="${PLACEHOLDER}" alt="" loading="eager" fetchpriority="high" decoding="sync">`;
     if (thumbs) thumbs.innerHTML = '';
     if (prev) prev.style.display = 'none';
     if (next) next.style.display = 'none';
@@ -3490,7 +3490,7 @@ function setupGallery(imgs) {
   }
 
   track.innerHTML = _galleryImgs.map((src, i) =>
-    `<img ${i===0?'id="mImg"':''} src="${src}" alt="" loading="${i===0?'eager':'lazy'}" decoding="async" onerror="this.src='${PLACEHOLDER}'">`
+    `<img ${i===0?'id="mImg"':''} src="${src}" alt="" loading="${i===0?'eager':'lazy'}" decoding="${i===0?'sync':'async'}" ${i===0?'fetchpriority="high"':''} onerror="this.src='${PLACEHOLDER}'">`
   ).join('');
   track.style.transform = 'translateX(0)';
 
