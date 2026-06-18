@@ -4215,7 +4215,7 @@ async function handleOrderComplete(order) {
       if (idx !== -1) RECORDS[idx].avail = false;
     }
 
-    // 3. Invia email di conferma ordine
+    // 3. Invia email di conferma ordine al cliente
     try {
       await fetch('/api/send-order-email', {
         method: 'POST',
@@ -4237,6 +4237,37 @@ async function handleOrderComplete(order) {
     } catch(emailErr) {
       console.error('Email send error:', emailErr);
       // Non bloccare il flusso se l'email fallisce
+    }
+
+    // 3b. Invia notifica completa al negozio (sempre, indipendentemente dall'email PayPal)
+    try {
+      const itemsListText = cart.map(r => `${r.label} — €${(r.price/100).toFixed(2)}`).join('\n');
+      await fetch('/api/send-order-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buyerEmail: 'afrowantedrecords@gmail.com',
+          buyerName: 'NEW ORDER NOTIFICATION',
+          orderId: order.id,
+          isShopNotification: true,
+          items: cart.map(r => ({ label: r.label, price: r.price })),
+          total: total.toFixed(2),
+          shippingCost: shippingCostPaid.toFixed(2),
+          packagingCost: packagingCostPaid.toFixed(2),
+          customerName: buyerName,
+          customerEmail: buyerEmail,
+          shippingAddress: {
+            name: buyerName,
+            address: buyerAddress,
+            zip: buyerZip,
+            city: buyerCity,
+            country: buyerCountry
+          },
+          errorDetail: `New PayPal order from ${buyerName} (${buyerEmail}).\n\nItems:\n${itemsListText}\n\nShipping: €${shippingCostPaid.toFixed(2)}\nPackaging: €${packagingCostPaid.toFixed(2)}\nTotal: €${total.toFixed(2)}\n\nAddress:\n${buyerAddress}\n${buyerZip} ${buyerCity}\n${buyerCountry}\n\nPayPal Order ID: ${order.id}`
+        })
+      });
+    } catch(notifyErr) {
+      console.error('Shop notification error:', notifyErr);
     }
 
   } catch(e) {
