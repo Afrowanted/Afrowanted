@@ -1100,6 +1100,28 @@ if(document.readyState === 'loading'){
   tryRestoreSession();
 }
 
+// Refresh automatico del token ogni 50 minuti per evitare scadenza sessione durante il lavoro
+setInterval(async () => {
+  const _savedRefresh = localStorage.getItem('aw_admin_refresh_token');
+  if (!_authToken || !_savedRefresh) return;
+  try {
+    const rRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: _savedRefresh })
+    });
+    if (rRes.ok) {
+      const rData = await rRes.json();
+      if (rData.access_token) {
+        _authToken = rData.access_token;
+        localStorage.setItem('aw_admin_token', rData.access_token);
+        if (rData.refresh_token) localStorage.setItem('aw_admin_refresh_token', rData.refresh_token);
+        console.log('✓ Session token refreshed automatically');
+      }
+    }
+  } catch(e) { console.error('Background token refresh failed:', e); }
+}, 50 * 60 * 1000); // ogni 50 minuti
+
 // TABS
 function showTab(id,btn){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
@@ -1115,7 +1137,14 @@ function showTab(id,btn){
   if(window.location.hash !== '#'+id) {
     history.pushState({tab:id}, '', '#'+id);
   }
-  if(id==='catalogue') renderCatalogue();
+  if(id==='catalogue') {
+    // Ripristina ricerca/filtri precedenti se presenti
+    setTimeout(()=>{
+      const catSearchEl = document.getElementById('catSearch');
+      if(catSearchEl && window._lastCatSearch) catSearchEl.value = window._lastCatSearch;
+      renderCatalogue(window._lastCatSearch||'', document.getElementById('catFilterSel')?.value, document.getElementById('visFilterSel')?.value, document.getElementById('catSortSel')?.value);
+    }, 0);
+  }
   if(id==='shipping')  initShipping();
   if(id==='orders')    renderOrders();
   if(id==='reservations') renderReservations();
@@ -1589,16 +1618,7 @@ async function submitRecord(){
     btn.disabled=false;btn.textContent='SAVE RECORD';
     resetForm();
     _catalogueLoaded=false;
-    // Torna al catalogue mantenendo la ricerca attiva
-    const savedSearch = document.getElementById('catSearch')?.value || '';
     showTab('catalogue');
-    setTimeout(()=>{
-      const catSearchEl = document.getElementById('catSearch');
-      if(catSearchEl && savedSearch) {
-        catSearchEl.value = savedSearch;
-        filterCatalogue(savedSearch);
-      }
-    }, 100);
     return;
   } else {
     row.date_added=new Date().toISOString();
@@ -1732,7 +1752,7 @@ function renderMobileCatalogue(records) {
   }
 }
 
-function filterCatalogue(q){ _catVisibleCount=CAT_PAGE_SIZE; renderCatalogue(q,document.getElementById('catFilterSel').value,document.getElementById('visFilterSel').value,document.getElementById('catSortSel').value); }
+function filterCatalogue(q){ window._lastCatSearch=q; _catVisibleCount=CAT_PAGE_SIZE; renderCatalogue(q,document.getElementById('catFilterSel').value,document.getElementById('visFilterSel').value,document.getElementById('catSortSel').value); }
 
 const CAT_PAGE_SIZE = 150;
 let _catVisibleCount = CAT_PAGE_SIZE;
