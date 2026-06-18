@@ -1162,7 +1162,11 @@ window.addEventListener('popstate', function(e) {
   document.getElementById('tab-'+tab)?.classList.add('active');
   const tabBtn = document.querySelector(`.tab-btn[onclick*="'${tab}'"]`);
   if(tabBtn) tabBtn.classList.add('active');
-  if(tab==='catalogue') renderCatalogue();
+  if(tab==='catalogue') {
+    const catSearchEl = document.getElementById('catSearch');
+    if(catSearchEl && window._lastCatSearch) catSearchEl.value = window._lastCatSearch;
+    renderCatalogue(window._lastCatSearch||'', document.getElementById('catFilterSel')?.value, document.getElementById('visFilterSel')?.value, document.getElementById('catSortSel')?.value);
+  }
   if(tab==='shipping')  initShipping();
   if(tab==='orders')    renderOrders();
   if(tab==='customers') renderCustomers();
