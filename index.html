@@ -4167,16 +4167,37 @@ async function handleOrderComplete(order) {
   };
 
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
+    const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
         'Authorization': 'Bearer ' + SUPABASE_KEY,
         'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Prefer': 'return=representation'
       },
       body: JSON.stringify(orderData)
     });
+
+    if (!orderRes.ok) {
+      const errBody = await orderRes.text();
+      console.error('Order insert failed:', orderRes.status, errBody);
+      // Notifica errore critico — l'ordine NON è stato salvato
+      try {
+        await fetch('/api/send-order-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            buyerEmail: 'afrowantedrecords@gmail.com',
+            buyerName: 'SYSTEM ALERT',
+            orderId: order.id,
+            isErrorAlert: true,
+            errorDetail: `Order save FAILED for ${buyerEmail} (PayPal order ${order.id}). Status: ${orderRes.status}. Body: ${errBody}`
+          })
+        });
+      } catch(e) {}
+      showToast('⚠ Errore nel salvataggio ordine. Contatta il negozio con il numero PayPal: ' + order.id, true);
+      return; // blocca il flusso, NON marca i dischi venduti né invia conferma normale
+    }
 
     // 2. Marca i dischi come venduti (available: false, visible: false)
     for (const r of cart) {
