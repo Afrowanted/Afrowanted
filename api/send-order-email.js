@@ -21,10 +21,129 @@ export default async function handler(req, res) {
     });
   }
  
-  const { buyerEmail, buyerName, items, total, orderId, shippingAddress } = req.body;
+  const { buyerEmail, buyerName, items, total, orderId, shippingAddress, isShopNotification, isErrorAlert, errorDetail, shippingCost, packagingCost, customerName, customerEmail } = req.body;
  
   if (!buyerEmail || !items || !total) {
     return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  // ── EMAIL DI NOTIFICA AL NEGOZIO (nuovo ordine) ──
+  if (isShopNotification) {
+    const itemsHTMLShop = items.map(item => `
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid #2a2a2a;color:#f0ebe0;font-size:14px;">${item.label}</td>
+        <td style="padding:8px 0;border-bottom:1px solid #2a2a2a;color:#c9943a;font-size:14px;text-align:right;font-family:monospace;">€${(item.price/100).toFixed(2)}</td>
+      </tr>`).join('');
+
+    const shopHTML = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0d0c09;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 16px;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:24px;letter-spacing:3px;color:#f0ebe0;font-weight:900;">AFRO<span style="color:#c9943a;">-</span>WANTED</div>
+      <div style="font-size:11px;letter-spacing:2px;color:#c9943a;margin-top:4px;font-family:monospace;">🔔 NEW ORDER RECEIVED</div>
+    </div>
+
+    <div style="background:#1a1710;border-radius:4px;padding:20px;margin-bottom:20px;border:1px solid #2a2a2a;">
+      <div style="font-family:monospace;font-size:11px;color:#c9943a;letter-spacing:1px;margin-bottom:10px;">CUSTOMER</div>
+      <div style="color:#f0ebe0;font-size:14px;line-height:1.6;">
+        ${customerName || ''}<br>
+        <a href="mailto:${customerEmail}" style="color:#c9943a;text-decoration:none;">${customerEmail || ''}</a>
+      </div>
+    </div>
+
+    <div style="background:#1a1710;border-radius:4px;padding:20px;margin-bottom:20px;border:1px solid #2a2a2a;">
+      <div style="font-family:monospace;font-size:11px;color:#c9943a;letter-spacing:1px;margin-bottom:14px;">ITEMS ORDERED</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${itemsHTMLShop}
+        ${shippingCost ? `<tr><td style="padding:6px 0;color:#888;font-size:13px;">Shipping</td><td style="padding:6px 0;color:#888;font-size:13px;text-align:right;font-family:monospace;">€${shippingCost}</td></tr>` : ''}
+        ${packagingCost && parseFloat(packagingCost) > 0 ? `<tr><td style="padding:6px 0;color:#888;font-size:13px;">Packaging</td><td style="padding:6px 0;color:#888;font-size:13px;text-align:right;font-family:monospace;">€${packagingCost}</td></tr>` : ''}
+        <tr>
+          <td style="padding:12px 0 0;color:#888;font-family:monospace;font-size:12px;letter-spacing:1px;">TOTAL</td>
+          <td style="padding:12px 0 0;color:#c9943a;font-family:monospace;font-size:18px;font-weight:700;text-align:right;">€${total}</td>
+        </tr>
+      </table>
+    </div>
+
+    ${shippingAddress ? `
+    <div style="background:#1a1710;border-radius:4px;padding:20px;margin-bottom:20px;border:1px solid #2a2a2a;">
+      <div style="font-family:monospace;font-size:11px;color:#c9943a;letter-spacing:1px;margin-bottom:10px;">SHIPPING ADDRESS</div>
+      <div style="color:#f0ebe0;font-size:14px;line-height:1.7;">
+        ${shippingAddress.name || ''}<br>
+        ${shippingAddress.address || ''}<br>
+        ${shippingAddress.zip || ''} ${shippingAddress.city || ''}<br>
+        ${shippingAddress.country || ''}
+      </div>
+    </div>` : ''}
+
+    <div style="background:#1a1710;border-radius:4px;padding:16px;border:1px solid #2a2a2a;">
+      <div style="font-family:monospace;font-size:11px;color:#555;letter-spacing:1px;">PAYPAL ORDER ID</div>
+      <div style="color:#888;font-size:13px;font-family:monospace;margin-top:4px;">${orderId || '—'}</div>
+    </div>
+
+  </div>
+</body>
+</html>`;
+
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: 'Afro-Wanted <noreply@afrowanted.com>',
+          to: [buyerEmail],
+          subject: `🔔 New Order — €${total} — ${customerName || 'Customer'}`,
+          html: shopHTML
+        })
+      });
+      const data = await response.json();
+      if (response.ok) return res.status(200).json({ success: true, id: data.id });
+      console.error('Resend error (shop notification):', data);
+      return res.status(500).json({ error: data.message || 'Email send failed' });
+    } catch (err) {
+      console.error('Shop notification email error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // ── EMAIL DI ALERT ERRORE (salvataggio ordine fallito) ──
+  if (isErrorAlert) {
+    const alertHTML = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0d0c09;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 16px;">
+    <div style="background:#2a1414;border:1px solid #e74c3c;border-radius:4px;padding:20px;">
+      <div style="font-family:monospace;font-size:12px;color:#e74c3c;letter-spacing:1px;margin-bottom:10px;">⚠ ORDER SAVE FAILED</div>
+      <div style="color:#f0ebe0;font-size:14px;white-space:pre-line;line-height:1.6;">${errorDetail || 'Unknown error'}</div>
+    </div>
+  </div>
+</body>
+</html>`;
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: 'Afro-Wanted <noreply@afrowanted.com>',
+          to: [buyerEmail],
+          subject: `⚠ ORDER ERROR — Action Required`,
+          html: alertHTML
+        })
+      });
+      const data = await response.json();
+      if (response.ok) return res.status(200).json({ success: true, id: data.id });
+      return res.status(500).json({ error: data.message || 'Email send failed' });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
   }
  
   const itemsHTML = items.map(item => `
