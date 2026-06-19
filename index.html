@@ -2105,16 +2105,24 @@ async function loadFromSupabase() {
 }
 
 // ── RENDER ──
-function cardHTML(r) {
+function cardHTML(r, isPriority = false) {
   const ribbon = r.ribbon ? `<div class="record-ribbon">${r.ribbon}</div>` : '';
   const noAudio = !r.audio ? ' no-audio' : '';
   const playTitle = r.audio ? 'Preview audio' : 'No preview available';
   const isWished = _wishlistIds.has(r.id);
   const wishClass = isWished ? ' active' : '';
   const wishIcon = isWished ? '♥' : '♡';
+  // Le prime card sopra la piega (above the fold) vengono caricate con
+  // priorità alta e senza lazy-loading, perché sono quasi certamente
+  // l'elemento LCP della pagina: ritardarle con loading="lazy" peggiora
+  // il Largest Contentful Paint. Le card successive restano lazy per
+  // non sovraccaricare il caricamento iniziale.
+  const imgLoadingAttrs = isPriority
+    ? `loading="eager" fetchpriority="high" decoding="sync"`
+    : `loading="lazy" decoding="async"`;
   return `<div class="record-card" data-id="${r.id}" onclick="openModal(${r.id})">
     <div class="record-cover" style="position:relative;">
-      <img src="${r.imgThumb || r.img}" alt="${r.label}" loading="lazy" decoding="async" onerror="this.src='${PLACEHOLDER}'">
+      <img src="${r.imgThumb || r.img}" alt="${r.label}" ${imgLoadingAttrs} onerror="this.src='${PLACEHOLDER}'">
       ${ribbon}
       <button class="wish-btn${wishClass}" id="wish-${r.id}" onclick="event.stopPropagation();toggleWishlist(${r.id})" title="Add to wishlist">${wishIcon}</button>
     </div>
@@ -2182,8 +2190,12 @@ function render() {
           <div class="sk-line short"></div>
         </div>`).join('');
     } else {
+      // Le prime 8 card sono quasi certamente visibili senza scroll
+      // (above the fold) sia su mobile che desktop: le carichiamo con
+      // priorità alta per migliorare il Largest Contentful Paint.
+      const PRIORITY_CARD_COUNT = 8;
       html = visible.length
-        ? visible.map(cardHTML).join('')
+        ? visible.map((r, i) => cardHTML(r, i < PRIORITY_CARD_COUNT)).join('')
         : `<div class="no-results">${t('no_results')}</div>`;
     }
 
