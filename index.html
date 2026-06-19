@@ -2082,7 +2082,7 @@ async function loadFromSupabase() {
           price:     r.price,
           desc:      r.description || '',
           img:       (r.img_url || '').replace(/^http:\/\//,'https://') || PLACEHOLDER,
-          imgThumb:  (() => { const u = (r.img_url || '').replace(/^http:\/\//,'https://'); if (!u) return PLACEHOLDER; return u.includes('_main.') ? u.replace(/_main\.(jpg|jpeg|png)$/i, '_main_thumb.jpg') : u; })(),
+          imgThumb:  (() => { const u = (r.img_url || '').replace(/^http:\/\//,'https://'); if (!u) return PLACEHOLDER; return u.replace(/_main\.(jpg|jpeg|png)(\?.*)?$/i, '_main_thumb.jpg$2'); })(),
           imgs:      (() => { const all = (r.img_urls || []).filter(Boolean).map(u => u.replace(/^http:\/\//,'https://')); const imgUrl = (r.img_url||'').replace(/^http:\/\//,'https://'); if (imgUrl && !all.includes(imgUrl)) all.unshift(imgUrl); return all.length ? all : (imgUrl ? [imgUrl] : []); })(),
           audio:     r.audio_url || null,
           archive:   r.archive_position || '',
