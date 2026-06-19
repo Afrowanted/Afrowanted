@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     const itemsHTMLShop = items.map(item => `
       <tr>
         <td style="padding:8px 0;border-bottom:1px solid #2a2a2a;color:#f0ebe0;font-size:14px;">${item.label}</td>
-        <td style="padding:8px 0;border-bottom:1px solid #2a2a2a;color:#c9943a;font-size:14px;text-align:right;font-family:monospace;">€${(item.price/100).toFixed(2)}</td>
+        <td style="padding:8px 0;border-bottom:1px solid #2a2a2a;color:#c9943a;font-size:14px;text-align:right;font-family:monospace;">€${Number(item.price).toFixed(2)}</td>
       </tr>`).join('');
 
     const shopHTML = `
