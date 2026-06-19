@@ -4254,7 +4254,7 @@ async function handleOrderComplete(order) {
 
     // 3b. Invia notifica completa al negozio (sempre, indipendentemente dall'email PayPal)
     try {
-      const itemsListText = cart.map(r => `${r.label} — €${(r.price/100).toFixed(2)}`).join('\n');
+      const itemsListText = cart.map(r => `${r.label} — €${r.price.toFixed(2)}`).join('\n');
       await fetch('/api/send-order-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
