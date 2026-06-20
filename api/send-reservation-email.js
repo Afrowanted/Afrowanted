@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // NOTA: i controlli "max 5 prenotazioni attive" e "max 1 al giorno" sono
+  // NOTA: i controlli "max 10 prenotazioni attive" e "max 1 al giorno" sono
   // già applicati lato client in index.html PRIMA che la reservation venga
   // creata su Supabase. A questo punto la reservation esiste già: bloccare
   // l'invio email qui (come succedeva prima con lo status 401 se userId
