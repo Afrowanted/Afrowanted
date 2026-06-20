@@ -27,45 +27,21 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // ── CONTROLLI LIMITE PRENOTAZIONI (lato server) ──
-  if (!userId) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-  const authHeaders = {
-    'apikey': SUPABASE_SERVICE_KEY,
-    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-    'Content-Type': 'application/json'
-  };
-
-  const now = new Date().toISOString();
-
-  // 1. Max 5 prenotazioni attive contemporaneamente
-  const activeRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/reservations?user_id=eq.${userId}&status=eq.pending&expires_at=gt.${now}&select=id`,
-    { headers: authHeaders }
-  );
-  const activeData = await activeRes.json();
-  if (activeData.length >= 5) {
-    return res.status(429).json({ error: 'Max 5 active reservations reached. Contact us for more.' });
-  }
-
-  // 2. Max 1 prenotazione al giorno
-  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-  const todayRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/reservations?user_id=eq.${userId}&created_at=gte.${todayStart.toISOString()}&select=id`,
-    { headers: authHeaders }
-  );
-  const todayData = await todayRes.json();
-  if (todayData.length >= 1) {
-    return res.status(429).json({ error: 'Only 1 bank transfer reservation per day allowed.' });
-  }
-  // ── FINE CONTROLLI ──
+  // NOTA: i controlli "max 5 prenotazioni attive" e "max 1 al giorno" sono
+  // già applicati lato client in index.html PRIMA che la reservation venga
+  // creata su Supabase. A questo punto la reservation esiste già: bloccare
+  // l'invio email qui (come succedeva prima con lo status 401 se userId
+  // mancava) lascia il cliente senza dati di pagamento per un ordine che
+  // è comunque salvato — è quello che ha causato il problema con l'ordine
+  // AW-2026-Z2EP del 20/06/2026. Per questo l'email viene sempre inviata
+  // se buyerEmail e orderCode sono presenti, indipendentemente da userId.
 
   const WISE_IBAN = process.env.WISE_IBAN || '';
   const WISE_NAME = process.env.WISE_NAME || 'Frying Pan Records di Carlotta Fiorio';
+
+  if (!WISE_IBAN) {
+    console.error('WISE_IBAN env var is not set — email will be sent WITHOUT bank details!');
+  }
 
   const expires = new Date(expiresAt).toLocaleString('it-IT', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -173,13 +149,14 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     if (response.ok) {
+      console.log(`Reservation email sent OK — order ${orderCode}, to ${buyerEmail}, resend id ${data.id}`);
       res.status(200).json({ success: true, id: data.id });
     } else {
-      console.error('Resend error:', data);
+      console.error(`Resend error for reservation ${orderCode} (${buyerEmail}):`, data);
       res.status(500).json({ error: data.message || 'Email send failed' });
     }
   } catch (err) {
-    console.error('Reservation email error:', err);
+    console.error(`Reservation email error for ${orderCode} (${buyerEmail}):`, err);
     res.status(500).json({ error: err.message });
   }
 }
