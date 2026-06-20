@@ -5459,10 +5459,7 @@ function showReservationConfirm(orderCode, total, email) {
 }
 
 // ── STRIPE ──────────────────────────────────────────────────
-// ⚠️ TODO: sostituire con la chiave LIVE (pk_live_...) da Stripe Dashboard
-// → Developers → API keys, con "Test mode" disattivato in alto a destra.
-// Finché resta pk_test_..., i pagamenti con carte vere NON vengono incassati.
-const STRIPE_PK = 'pk_test_51TVp6pV0528WHBKtCZGaWJLHk53q1gZppQboO3AaZqYQvPHECx2rTXIS3IB1oIARR43nKYc7c9w1kTqleEh3nWnM00Bm3BVUK1';
+const STRIPE_PK = 'pk_live_51TVp6XV051UW9CJ6Vdhh5Rehlhp2682bOBFP65GrpCuADqWb5MK1XfX87LFMj8hU9vq2a59v2gIFztgH9NQuRFsh00fHV0QAaO';
 let _stripe = null;
 let _stripeElements = null;
 let _stripePaymentElement = null;
