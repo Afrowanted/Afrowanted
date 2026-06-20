@@ -5331,7 +5331,15 @@ async function handleWisePayment() {
   const buyerCity    = document.getElementById('cfCity').value.trim();
   const buyerZip     = document.getElementById('cfZip')?.value.trim() || '';
   const buyerCountry = document.getElementById('cfCountry').value.trim();
-  const total        = cart.reduce((s,r) => s + r.price, 0);
+  const subtotal     = cart.reduce((s,r) => s + r.price, 0);
+  let   shippingCostPaid = 0;
+  if (buyerCountry && _shippingData) {
+    const wkg = calcOrderWeightKg(cart);
+    const sc  = getShippingCost(wkg, buyerCountry, _shippingData);
+    if (sc !== null) shippingCostPaid = Number(sc);
+  }
+  const packagingCostPaid = getPackagingTotal();
+  const total        = subtotal + shippingCostPaid + packagingCostPaid;
   const orderCode    = generateOrderCode();
   const expiresAt    = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
