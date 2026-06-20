@@ -5249,10 +5249,9 @@ function isEuroCountry(country) {
 function updateWiseButton() {
   const wiseBtn = document.getElementById('wiseCartBtn');
   if (!wiseBtn) return;
-  // Mostra solo se utente loggato e paese non-euro
-  if (!_currentUser) { wiseBtn.style.display = 'none'; return; }
-  const country = _currentUser._profileCountry || '';
-  wiseBtn.style.display = (!country || isEuroCountry(country)) ? 'none' : 'flex';
+  // Mostra a chiunque sia loggato, indipendentemente dal paese
+  // (rimossa la restrizione euro/non-euro su richiesta esplicita)
+  wiseBtn.style.display = _currentUser ? 'flex' : 'none';
 }
 
 // ── BANK TRANSFER (WISE) ─────────────────────────────────────
