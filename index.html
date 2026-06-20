@@ -5298,14 +5298,19 @@ async function handleWisePayment() {
         'Prefer': 'return=minimal'
       },
       body: JSON.stringify({
-        record_id:    cart[0].id,
-        user_id:      _currentUser?.id || null,
-        order_code:   orderCode,
-        buyer_name:   buyerName,
-        buyer_email:  buyerEmail,
-        amount:       total,
-        status:       'pending',
-        expires_at:   expiresAt
+        record_id:     cart[0].id,
+        record_ids:    cart.map(r => r.id),
+        user_id:       _currentUser?.id || null,
+        order_code:    orderCode,
+        buyer_name:    buyerName,
+        buyer_email:   buyerEmail,
+        buyer_address: buyerAddress,
+        buyer_zip:     buyerZip,
+        buyer_city:    buyerCity,
+        buyer_country: buyerCountry,
+        amount:        total,
+        status:        'pending',
+        expires_at:    expiresAt
       })
     });
 
@@ -5326,19 +5331,57 @@ async function handleWisePayment() {
       if (idx !== -1) RECORDS[idx].avail = false;
     }
 
-    // Invia email al cliente
-    await fetch('/api/send-reservation-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        buyerEmail, buyerName, orderCode,
-        userId: _currentUser?.id,
-        items: cart.map(r => ({ label: r.label, price: r.price })),
-        total: total.toFixed(2),
-        expiresAt,
-        shippingAddress: { name: buyerName, address: buyerAddress, city: buyerCity, country: buyerCountry }
-      })
-    });
+    // Invia email al cliente con i dati per il pagamento
+    try {
+      const emailRes = await fetch('/api/send-reservation-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buyerEmail, buyerName, orderCode,
+          userId: _currentUser?.id,
+          items: cart.map(r => ({ label: r.label, price: r.price })),
+          total: total.toFixed(2),
+          expiresAt,
+          shippingAddress: { name: buyerName, address: buyerAddress, city: buyerCity, zip: buyerZip, country: buyerCountry }
+        })
+      });
+      if (!emailRes.ok) {
+        const errBody = await emailRes.text();
+        console.error('send-reservation-email failed:', emailRes.status, errBody);
+      }
+    } catch (emailErr) {
+      console.error('send-reservation-email error:', emailErr);
+      // Non bloccare il flusso se l'email al cliente fallisce
+    }
+
+    // Invia notifica completa al negozio (sempre, indipendentemente dall'email al cliente)
+    try {
+      const itemsListText = cart.map(r => `${r.label} — €${(r.price / 100).toFixed(2)}`).join('\n');
+      await fetch('/api/send-order-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buyerEmail: 'afrowantedrecords@gmail.com',
+          buyerName: 'NEW WISE ORDER NOTIFICATION',
+          orderId: orderCode,
+          isShopNotification: true,
+          items: cart.map(r => ({ label: r.label, price: r.price })),
+          total: total.toFixed(2),
+          customerName: buyerName,
+          customerEmail: buyerEmail,
+          shippingAddress: {
+            name: buyerName,
+            address: buyerAddress,
+            zip: buyerZip,
+            city: buyerCity,
+            country: buyerCountry
+          },
+          errorDetail: `Nuovo ordine WISE da ${buyerName} (${buyerEmail}).\n\nATTENZIONE: pagamento tramite bonifico bancario — controllare la ricezione dei soldi sul conto prima di confermare.\n\nCodice ordine: ${orderCode}\n\nDischi:\n${itemsListText}\n\nTotale: €${total.toFixed(2)}\n\nIndirizzo:\n${buyerAddress}\n${buyerZip} ${buyerCity}\n${buyerCountry}`
+        })
+      });
+    } catch (notifyErr) {
+      console.error('Wise shop notification error:', notifyErr);
+    }
 
     // Mostra conferma
     document.getElementById('checkoutOverlay').style.display = 'none';
