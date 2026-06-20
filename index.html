@@ -4142,6 +4142,9 @@ function renderPayPalButton() {
 }
 
 async function handleOrderComplete(order) {
+  const paymentMethod = order.payment_method || 'paypal'; // default paypal per retrocompatibilità (PayPal non passa mai payment_method)
+  const paymentLabel  = paymentMethod === 'stripe' ? 'Stripe' : 'PayPal';
+
   const buyerName    = document.getElementById('cfFullName').value.trim();
   const buyerEmail   = document.getElementById('cfEmail').value.trim();
   const buyerAddress = document.getElementById('cfAddress').value.trim();
@@ -4178,7 +4181,8 @@ async function handleOrderComplete(order) {
     packaging_cost:   packagingCostPaid * 100, // in centesimi
     total:            total * 100, // in centesimi
     status:           'pending',
-    paypal_order_id:  order.id,
+    paypal_order_id:  order.id, // contiene l'ID PayPal O l'ID PaymentIntent Stripe, a seconda di payment_method
+    payment_method:   paymentMethod,
     created_at:       new Date().toISOString(),
   };
 
@@ -4207,11 +4211,11 @@ async function handleOrderComplete(order) {
             buyerName: 'SYSTEM ALERT',
             orderId: order.id,
             isErrorAlert: true,
-            errorDetail: `Order save FAILED for ${buyerEmail} (PayPal order ${order.id}). Status: ${orderRes.status}. Body: ${errBody}`
+            errorDetail: `Order save FAILED for ${buyerEmail} (${paymentLabel} order ${order.id}). Status: ${orderRes.status}. Body: ${errBody}`
           })
         });
       } catch(e) {}
-      showToast('⚠ Errore nel salvataggio ordine. Contatta il negozio con il numero PayPal: ' + order.id, true);
+      showToast('⚠ Errore nel salvataggio ordine. Contatta il negozio con il numero ordine: ' + order.id, true);
       return; // blocca il flusso, NON marca i dischi venduti né invia conferma normale
     }
 
@@ -4263,7 +4267,7 @@ async function handleOrderComplete(order) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           buyerEmail: 'afrowantedrecords@gmail.com',
-          buyerName: 'NEW ORDER NOTIFICATION',
+          buyerName: `NEW ${paymentLabel.toUpperCase()} ORDER NOTIFICATION`,
           orderId: order.id,
           isShopNotification: true,
           items: cart.map(r => ({ label: r.label, price: r.price })),
@@ -4279,7 +4283,7 @@ async function handleOrderComplete(order) {
             city: buyerCity,
             country: buyerCountry
           },
-          errorDetail: `New PayPal order from ${buyerName} (${buyerEmail}).\n\nItems:\n${itemsListText}\n\nShipping: €${shippingCostPaid.toFixed(2)}\nPackaging: €${packagingCostPaid.toFixed(2)}\nTotal: €${total.toFixed(2)}\n\nAddress:\n${buyerAddress}\n${buyerZip} ${buyerCity}\n${buyerCountry}\n\nPayPal Order ID: ${order.id}`
+          errorDetail: `Nuovo ordine ${paymentLabel.toUpperCase()} da ${buyerName} (${buyerEmail}).\n\nMetodo di pagamento: ${paymentLabel}${paymentMethod === 'stripe' ? ' — controlla la dashboard Stripe per la conferma del pagamento.' : ' — pagamento istantaneo confermato da PayPal.'}\n\nItems:\n${itemsListText}\n\nShipping: €${shippingCostPaid.toFixed(2)}\nPackaging: €${packagingCostPaid.toFixed(2)}\nTotal: €${total.toFixed(2)}\n\nAddress:\n${buyerAddress}\n${buyerZip} ${buyerCity}\n${buyerCountry}\n\n${paymentLabel} Order ID: ${order.id}`
         })
       });
     } catch(notifyErr) {
@@ -5455,6 +5459,9 @@ function showReservationConfirm(orderCode, total, email) {
 }
 
 // ── STRIPE ──────────────────────────────────────────────────
+// ⚠️ TODO: sostituire con la chiave LIVE (pk_live_...) da Stripe Dashboard
+// → Developers → API keys, con "Test mode" disattivato in alto a destra.
+// Finché resta pk_test_..., i pagamenti con carte vere NON vengono incassati.
 const STRIPE_PK = 'pk_test_51TVp6pV0528WHBKtCZGaWJLHk53q1gZppQboO3AaZqYQvPHECx2rTXIS3IB1oIARR43nKYc7c9w1kTqleEh3nWnM00Bm3BVUK1';
 let _stripe = null;
 let _stripeElements = null;
