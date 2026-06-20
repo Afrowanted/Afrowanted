@@ -1755,7 +1755,7 @@
 
       <div class="contacts-form-title" data-i18n="send_message">SEND A MESSAGE</div>
 
-      <div class="contacts-form" id="contactForm"><input type="text" style="display:none" name="prevent_autofill"><input type="password" style="display:none" name="prevent_autofill_pw">
+      <div class="contacts-form" id="contactForm"><input type="text" id="cfHoneypot1" style="display:none" name="prevent_autofill"><input type="password" id="cfHoneypot2" style="display:none" name="prevent_autofill_pw">
         <div class="cf-field">
           <label data-i18n="your_name">Your name</label>
           <input type="text" id="cfName" placeholder="Name" autocomplete="new-password" name="contact_sender_x7k" readonly onfocus="this.removeAttribute('readonly')">
@@ -2274,6 +2274,9 @@ function handleSearch(q) {
     visibleCount = PAGE_SIZE;
     if (q) {
       document.querySelectorAll('[id^="dlink-"],[id^="slink-"],.cat-pill').forEach(l => l.classList.remove('active'));
+      // Salva la ricerca nell'hash dell'URL, così sopravvive a un refresh (F5)
+      // ed è condivisibile come link diretto
+      history.replaceState(null, '', '#search=' + encodeURIComponent(q));
     } else {
       setView(activeView); return;
     }
@@ -3421,11 +3424,13 @@ function initTheme() {
 }
 
 // ── CONTACTS ──
+let _contactFormOpenedAt = null;
 function openContacts() {
   document.getElementById('contactsOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   history.pushState(null, '', '#contacts');
   document.title = t('contacts') + ' — AFRO-WANTED';
+  _contactFormOpenedAt = Date.now();
 }
 
 function closeContacts() {
@@ -3446,6 +3451,29 @@ async function submitContact() {
   const subject = document.getElementById('cfSubject').value || '';
   const msg     = document.getElementById('cfMessage').value.trim();
   if (!name || !email || !msg) { showToast(t('fill_contact')); return; }
+
+  // ── CONTROLLI ANTI-BOT ──
+  // Questi controlli falliscono SILENZIOSAMENTE: mostriamo comunque il messaggio
+  // di successo al "mittente" (così un bot non capisce di essere stato bloccato
+  // e non adatta la sua tecnica), ma non salviamo né inviamo nulla davvero.
+  const honeypot1 = document.getElementById('cfHoneypot1')?.value || '';
+  const honeypot2 = document.getElementById('cfHoneypot2')?.value || '';
+  const tooFast = _contactFormOpenedAt && (Date.now() - _contactFormOpenedAt) < 2500;
+  const isBot = honeypot1 || honeypot2 || tooFast;
+
+  if (isBot) {
+    console.warn('Contact form blocked as bot (honeypot or too-fast submission)');
+    document.getElementById('contactForm').style.display = 'none';
+    document.getElementById('cfSuccess').style.display = 'block';
+    setTimeout(() => {
+      document.getElementById('contactForm').style.display = '';
+      document.getElementById('cfSuccess').style.display = 'none';
+      ['cfName','cfContactEmail','cfMessage'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('cfSubject').selectedIndex = 0;
+    }, 4000);
+    return;
+  }
+  // ── FINE CONTROLLI ANTI-BOT ──
 
   // 1. Salva messaggio su Supabase
   try {
@@ -3595,6 +3623,18 @@ function readHash() {
   }
 
   if (hash === 'contacts') { openContacts(); return; }
+  if (hash.startsWith('search=')) {
+    const q = decodeURIComponent(hash.slice('search='.length));
+    searchQ = q;
+    visibleCount = PAGE_SIZE;
+    ['searchInputMobile','searchInputDesktop'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = q;
+    });
+    document.querySelectorAll('[id^="dlink-"],[id^="slink-"],.cat-pill').forEach(l => l.classList.remove('active'));
+    render();
+    return;
+  }
   if (!hash || hash === '/') { setView('newin', { silent: true }); return; }
   if (hash.startsWith('record/')) {
     const id = parseInt(hash.split('/')[1], 10);
@@ -5269,9 +5309,11 @@ async function handleWisePayment() {
       btn.disabled = false; btn.textContent = 'RESERVE & PAY BY BANK TRANSFER'; return;
     }
 
-    // 2. Max 1 nuova prenotazione al giorno
+    // 2. Max 1 nuova prenotazione al giorno (conta solo quelle ancora valide:
+    //    pending o confirmed — una reservation cancellata non deve bloccare
+    //    un nuovo tentativo lo stesso giorno)
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-    const todayRes = await fetch(`${SUPABASE_URL}/rest/v1/reservations?user_id=eq.${userId}&created_at=gte.${todayStart.toISOString()}&select=id`, {
+    const todayRes = await fetch(`${SUPABASE_URL}/rest/v1/reservations?user_id=eq.${userId}&created_at=gte.${todayStart.toISOString()}&status=in.(pending,confirmed)&select=id`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
     });
     const todayData = await todayRes.json();
