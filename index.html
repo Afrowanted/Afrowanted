@@ -3561,7 +3561,10 @@ function readHash() {
         });
         const prData = await pr.json();
         if (!prData.length) {
-          // Usa dati profilo salvati temporaneamente oppure dalla metadata
+          // Usa PRIMA i dati dai metadata Supabase (sempre disponibili, viaggiano col token
+          // indipendentemente dal browser/dispositivo usato per confermare l'email),
+          // poi come fallback i dati salvati temporaneamente in localStorage
+          // (utile solo se la conferma avviene sullo stesso browser della registrazione)
           const pending = JSON.parse(localStorage.getItem('aw_pending_profile') || '{}');
           const meta = userData.user_metadata || {};
           await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
@@ -3570,12 +3573,12 @@ function readHash() {
             body: JSON.stringify({
               id: userData.id,
               email: userData.email,
-              full_name: pending.full_name || meta.full_name || '',
-              address: pending.address || '',
-              city: pending.city || '',
-              zip: pending.zip || '',
-              country: pending.country || '',
-              phone: pending.phone || ''
+              full_name: meta.full_name || pending.full_name || '',
+              address: meta.address || pending.address || '',
+              city: meta.city || pending.city || '',
+              zip: meta.zip || pending.zip || '',
+              country: meta.country || pending.country || '',
+              phone: meta.phone || pending.phone || ''
             })
           }).catch(() => {});
           localStorage.removeItem('aw_pending_profile');
@@ -4688,7 +4691,7 @@ async function doRegister() {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method: 'POST',
       headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, data: { full_name: name } })
+      body: JSON.stringify({ email, password, data: { full_name: name, address, city, zip, country, phone } })
     });
     const data = await res.json();
     if (data.access_token) {
