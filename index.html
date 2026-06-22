@@ -1753,38 +1753,6 @@
         </div>
       </div>
 
-      <div class="contacts-form-title" data-i18n="send_message">SEND A MESSAGE</div>
-
-      <div class="contacts-form" id="contactForm"><input type="text" id="cfHoneypot1" style="display:none" name="prevent_autofill"><input type="password" id="cfHoneypot2" style="display:none" name="prevent_autofill_pw">
-        <div class="cf-field">
-          <label data-i18n="your_name">Your name</label>
-          <input type="text" id="cfName" placeholder="Name" autocomplete="new-password" name="contact_sender_x7k" readonly onfocus="this.removeAttribute('readonly')">
-        </div>
-        <div class="cf-field">
-          <label data-i18n="your_email">Your email</label>
-          <input type="text" id="cfContactEmail" placeholder="email@example.com" autocomplete="new-password" name="contact_email_x7k" readonly onfocus="this.removeAttribute('readonly')">
-        </div>
-        <div class="cf-field">
-          <label data-i18n="subject">Subject</label>
-          <select id="cfSubject">
-            <option value="" data-i18n="select_subject">— Select —</option>
-            <option value="order" data-i18n="subj_order">Order / Payment</option>
-            <option value="shipping" data-i18n="subj_shipping">Shipping</option>
-            <option value="record" data-i18n="subj_record">Info on a record</option>
-            <option value="other" data-i18n="subj_other">Other</option>
-          </select>
-        </div>
-        <div class="cf-field">
-          <label data-i18n="message">Message</label>
-          <textarea id="cfMessage" autocomplete="off" placeholder="Write your message…"></textarea>
-        </div>
-        <button class="cf-submit" onclick="submitContact()" data-i18n="send">SEND MESSAGE</button>
-      </div>
-
-      <div class="cf-success" id="cfSuccess">
-        ✓<br><br>
-        <span data-i18n="msg_sent">Message sent! We'll get back to you shortly.</span>
-      </div>
     </div>
   </div>
 </div>
@@ -3424,13 +3392,11 @@ function initTheme() {
 }
 
 // ── CONTACTS ──
-let _contactFormOpenedAt = null;
 function openContacts() {
   document.getElementById('contactsOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   history.pushState(null, '', '#contacts');
   document.title = t('contacts') + ' — AFRO-WANTED';
-  _contactFormOpenedAt = Date.now();
 }
 
 function closeContacts() {
@@ -3443,70 +3409,6 @@ function closeContacts() {
 
 function maybeCloseContacts(e) {
   if (e.target === document.getElementById('contactsOverlay')) closeContacts();
-}
-
-async function submitContact() {
-  const name    = document.getElementById('cfName').value.trim();
-  const email   = document.getElementById('cfContactEmail').value.trim();
-  const subject = document.getElementById('cfSubject').value || '';
-  const msg     = document.getElementById('cfMessage').value.trim();
-  if (!name || !email || !msg) { showToast(t('fill_contact')); return; }
-
-  // ── CONTROLLI ANTI-BOT ──
-  // Questi controlli falliscono SILENZIOSAMENTE: mostriamo comunque il messaggio
-  // di successo al "mittente" (così un bot non capisce di essere stato bloccato
-  // e non adatta la sua tecnica), ma non salviamo né inviamo nulla davvero.
-  const honeypot1 = document.getElementById('cfHoneypot1')?.value || '';
-  const honeypot2 = document.getElementById('cfHoneypot2')?.value || '';
-  const tooFast = _contactFormOpenedAt && (Date.now() - _contactFormOpenedAt) < 2500;
-  const isBot = honeypot1 || honeypot2 || tooFast;
-
-  if (isBot) {
-    console.warn('Contact form blocked as bot (honeypot or too-fast submission)');
-    document.getElementById('contactForm').style.display = 'none';
-    document.getElementById('cfSuccess').style.display = 'block';
-    setTimeout(() => {
-      document.getElementById('contactForm').style.display = '';
-      document.getElementById('cfSuccess').style.display = 'none';
-      ['cfName','cfContactEmail','cfMessage'].forEach(id => document.getElementById(id).value = '');
-      document.getElementById('cfSubject').selectedIndex = 0;
-    }, 4000);
-    return;
-  }
-  // ── FINE CONTROLLI ANTI-BOT ──
-
-  // 1. Salva messaggio su Supabase
-  try {
-    await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ name, email, subject, message: msg, created_at: new Date().toISOString(), read: false })
-    });
-  } catch(e) { console.error('Message save error:', e); }
-
-  // 2. Invia email di notifica
-  try {
-    await fetch('/api/send-contact-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, subject, message: msg })
-    });
-  } catch(e) { console.error('Contact email error:', e); }
-
-  // 3. Mostra conferma
-  document.getElementById('contactForm').style.display = 'none';
-  document.getElementById('cfSuccess').style.display = 'block';
-  setTimeout(() => {
-    document.getElementById('contactForm').style.display = '';
-    document.getElementById('cfSuccess').style.display = 'none';
-    ['cfName','cfContactEmail','cfMessage'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('cfSubject').selectedIndex = 0;
-  }, 4000);
 }
 
 // ── GALLERY ──
