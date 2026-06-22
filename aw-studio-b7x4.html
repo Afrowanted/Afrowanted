@@ -124,6 +124,9 @@
   .crop-btn.confirm:hover{background:var(--gold-light);}
   .crop-btn.retake{background:none;border:1px solid var(--border2);color:var(--muted);}
   .crop-btn.retake:hover{color:var(--cream);border-color:var(--cream);}
+  .crop-rotate-actions{display:flex;gap:.75rem;margin-top:-.5rem;}
+  .crop-btn.rotate{background:none;border:1px solid var(--gold);color:var(--gold);font-size:.62rem;padding:.5rem 1rem;}
+  .crop-btn.rotate:hover{background:rgba(212,175,55,.1);}
   .upload-status{font-family:'Space Mono',monospace;font-size:.6rem;padding:.5rem .75rem;border-radius:2px;margin-top:.5rem;display:none;}
   .upload-status.uploading{display:block;color:var(--gold);background:rgba(201,148,58,.1);border:1px solid rgba(201,148,58,.3);}
   .upload-status.success{display:block;color:var(--green-light);background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);}
@@ -920,20 +923,27 @@
     <button class="photo-source-btn" onclick="photoSourceChoose('gallery')">
       <span>🖼</span> Scegli dalla galleria
     </button>
+    <button class="photo-source-btn" id="photoSourceEditBtn" onclick="photoSourceChoose('edit')" style="display:none;">
+      <span>✏️</span> Ruota / sistema foto attuale
+    </button>
     <button class="photo-source-cancel" onclick="photoSourceClose()">Annulla</button>
   </div>
 </div>
 
 <!-- CROP PREVIEW MODAL -->
 <div class="crop-overlay hidden" id="cropOverlay">
-  <div class="crop-title">Anteprima Foto</div>
-  <div class="crop-subtitle">L'immagine verrà ritagliata in formato 1:1 (quadrato centrato)</div>
+  <div class="crop-title" id="cropTitle">Anteprima Foto</div>
+  <div class="crop-subtitle" id="cropSubtitle">L'immagine verrà ritagliata in formato 1:1 (quadrato centrato)</div>
   <div class="crop-canvas-wrap">
     <canvas id="cropCanvas"></canvas>
   </div>
+  <div class="crop-rotate-actions">
+    <button class="crop-btn rotate" onclick="cropRotate(-90)" title="Ruota a sinistra">↺ 90°</button>
+    <button class="crop-btn rotate" onclick="cropRotate(90)" title="Ruota a destra">↻ 90°</button>
+  </div>
   <div class="crop-info" id="cropInfo"></div>
   <div class="crop-actions">
-    <button class="crop-btn retake" onclick="cropRetake()">🔄 RIFAI</button>
+    <button class="crop-btn retake" id="cropRetakeBtn" onclick="cropRetake()">🔄 RIFAI</button>
     <button class="crop-btn confirm" onclick="cropConfirm()">✓ CONFERMA</button>
   </div>
 </div>
@@ -1244,14 +1254,46 @@ let _photoSourceSlot = null;
 
 function openPhotoSource(i){
   _photoSourceSlot = i;
+  const editBtn = document.getElementById('photoSourceEditBtn');
+  const isFilled = document.getElementById('slot-'+i)?.classList.contains('filled');
+  editBtn.style.display = isFilled ? 'flex' : 'none';
   document.getElementById('photoSourceOverlay').classList.remove('hidden');
 }
 
 function photoSourceChoose(source){
   document.getElementById('photoSourceOverlay').classList.add('hidden');
   if(_photoSourceSlot === null) return;
+  if(source === 'edit'){
+    editExistingPhoto(_photoSourceSlot);
+    return;
+  }
   const inputId = source === 'camera' ? 'slot-camera-'+_photoSourceSlot : 'slot-input-'+_photoSourceSlot;
   document.getElementById(inputId).click();
+}
+
+// Riapre una foto già caricata (slot pieno) nel crop editor, per poterla ruotare/sistemare
+async function editExistingPhoto(i){
+  const url = _photoUrls[i];
+  if(!url) return;
+  const statusEl = document.getElementById('slot-status-'+i);
+  if(statusEl){ statusEl.textContent = '↻ Caricamento…'; statusEl.style.display='block'; }
+  try{
+    // Niente cache-bust nella fetch: vogliamo l'immagine reale già salvata
+    const cleanUrl = url.split('?')[0];
+    const res = await fetch(cleanUrl, { cache:'no-store' });
+    const blob = await res.blob();
+    const reader = new FileReader();
+    reader.onload = ev => {
+      if(statusEl) statusEl.style.display='none';
+      _cropSlotIndex = i;
+      _cropRetakeInput = null; // niente "rifai" con fotocamera in questo flusso
+      showCropPreview(ev.target.result, i);
+    };
+    reader.readAsDataURL(blob);
+  }catch(e){
+    if(statusEl) statusEl.style.display='none';
+    showToast('Impossibile ricaricare la foto per modificarla', true);
+  }
 }
 
 function photoSourceClose(){
@@ -1292,34 +1334,76 @@ function handleSlotSelect(e, i){
 }
 
 // ── CROP PREVIEW ──
+let _cropImg = null;     // Image originale corrente nel modal
+let _cropRotation = 0;   // 0, 90, 180, 270
+
 function showCropPreview(dataUrl, i){
   const overlay = document.getElementById('cropOverlay');
-  const canvas  = document.getElementById('cropCanvas');
-  const info    = document.getElementById('cropInfo');
   overlay.classList.remove('hidden');
+  _cropRotation = 0;
+
+  // Adatta titolo/bottone in base al contesto: foto nuova vs editing di foto già caricata
+  const isEditingExisting = !_cropRetakeInput;
+  document.getElementById('cropTitle').textContent = isEditingExisting ? 'Sistema Foto' : 'Anteprima Foto';
+  document.getElementById('cropSubtitle').textContent = isEditingExisting
+    ? "Ruota l'immagine se è storta, poi confermi per salvarla"
+    : "L'immagine verrà ritagliata in formato 1:1 (quadrato centrato)";
+  const retakeBtn = document.getElementById('cropRetakeBtn');
+  retakeBtn.textContent = isEditingExisting ? '✕ ANNULLA' : '🔄 RIFAI';
 
   const img = new Image();
   img.onload = () => {
-    // Calcola crop quadrato centrato
-    const size = Math.min(img.width, img.height);
-    const sx   = Math.floor((img.width  - size) / 2);
-    const sy   = Math.floor((img.height - size) / 2);
-
-    // Dimensione output: 1600×1600 px (poi compressa)
-    const OUT = 1600;
-    canvas.width  = OUT;
-    canvas.height = OUT;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, sx, sy, size, size, 0, 0, OUT, OUT);
-
-    // Stima dimensione e qualità
-    compressCanvas(canvas, blob => {
-      _cropBlob = blob;
-      const kb = Math.round(blob.size / 1024);
-      info.textContent = `${OUT}×${OUT}px · ${kb}kb · JPEG`;
-    });
+    _cropImg = img;
+    renderCropCanvas();
   };
   img.src = dataUrl;
+}
+
+function cropRotate(deg){
+  if(!_cropImg) return;
+  _cropRotation = ((_cropRotation + deg) % 360 + 360) % 360;
+  renderCropCanvas();
+}
+
+function renderCropCanvas(){
+  const canvas = document.getElementById('cropCanvas');
+  const info   = document.getElementById('cropInfo');
+  const img = _cropImg;
+  if(!img) return;
+
+  const rotated90 = (_cropRotation === 90 || _cropRotation === 270);
+  const effW = rotated90 ? img.height : img.width;
+  const effH = rotated90 ? img.width  : img.height;
+
+  // 1) Canvas intermedio con l'immagine ruotata, alle sue dimensioni "effettive" reali
+  const rotCanvas = document.createElement('canvas');
+  rotCanvas.width = effW;
+  rotCanvas.height = effH;
+  const rctx = rotCanvas.getContext('2d');
+  rctx.save();
+  rctx.translate(effW/2, effH/2);
+  rctx.rotate(_cropRotation * Math.PI/180);
+  rctx.drawImage(img, -img.width/2, -img.height/2);
+  rctx.restore();
+
+  // 2) Crop quadrato centrato sull'immagine ruotata (stessa logica dell'originale)
+  const size = Math.min(effW, effH);
+  const sx   = Math.floor((effW - size) / 2);
+  const sy   = Math.floor((effH - size) / 2);
+
+  // 3) Output finale 1600×1600
+  const OUT = 1600;
+  canvas.width  = OUT;
+  canvas.height = OUT;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(rotCanvas, sx, sy, size, size, 0, 0, OUT, OUT);
+
+  compressCanvas(canvas, blob => {
+    _cropBlob = blob;
+    const kb = Math.round(blob.size / 1024);
+    const rotLabel = _cropRotation ? ` · ruotata ${_cropRotation}°` : '';
+    info.textContent = `${OUT}×${OUT}px · ${kb}kb · JPEG${rotLabel}`;
+  });
 }
 
 function compressCanvas(canvas, callback){
@@ -1339,9 +1423,11 @@ function compressCanvas(canvas, callback){
 }
 
 function cropRetake(){
-  // Chiudi preview e riapri la fotocamera sullo stesso slot
+  // Chiudi preview e riapri la fotocamera sullo stesso slot (oppure annulla se editing foto esistente)
   document.getElementById('cropOverlay').classList.add('hidden');
   _cropBlob = null;
+  _cropImg = null;
+  _cropRotation = 0;
   if(_cropRetakeInput){
     _cropRetakeInput.value = ''; // reset input
     _cropRetakeInput.click();    // riapre fotocamera
