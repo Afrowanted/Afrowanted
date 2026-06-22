@@ -195,7 +195,8 @@
   .records-table td{padding:.6rem .75rem;border-bottom:1px solid var(--border);font-size:.82rem;vertical-align:middle;}
   .records-table tr:hover td{background:var(--surface2);}
   .records-table tr.row-selected td{background:rgba(201,148,58,.06);}
-  .tbl-cover{width:60px;height:60px;object-fit:cover;border-radius:3px;background:var(--surface3);display:block;}
+  .tbl-cover{width:80px;height:80px;object-fit:cover;border-radius:3px;background:var(--surface3);display:block;}
+  .records-table td.tbl-cover-cell{padding-top:.15rem;padding-bottom:.15rem;}
   .tbl-artist{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--gold);text-transform:uppercase;}
   .tbl-title{color:var(--cream);}
   .tbl-meta{font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);white-space:nowrap;}
@@ -1885,7 +1886,7 @@ async function renderCatalogue(q='',catFilter='',visFilter='',sortMode='date-des
     <tr id="row-${r.id}" draggable="true" ondragstart="dragStart(event,${r.id})" ondragover="dragOver(event)" ondrop="dropOn(event,${r.id})" ondragleave="dragLeave(event)" class="${selectedIds.has(r.id)?'row-selected':''}">
       <td><span class="drag-handle" title="Drag to reorder">⠿</span></td>
       <td><input class="row-check" type="checkbox" ${selectedIds.has(r.id)?'checked':''} onchange="toggleSelect(${r.id},this.checked)"></td>
-      <td><img class="tbl-cover" src="${r.img}" alt="" onerror="this.style.background='var(--surface3)'"></td>
+      <td class="tbl-cover-cell"><img class="tbl-cover" src="${r.img}" alt="" onerror="this.style.background='var(--surface3)'"></td>
       <td><a class="tbl-title" href="?edit=${r.id}" onclick="event.preventDefault();editRecord(${r.id})" style="cursor:pointer;color:var(--gold);text-decoration:underline;display:block;">${r.label||r.title||''}</a></td>
       <td><span class="tbl-meta">${r.cats.filter(Boolean).join(', ')}</span></td>
       <td>
