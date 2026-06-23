@@ -1,6 +1,15 @@
 import { rateLimit } from './_rateLimit.js';
 
 export default async function handler(req, res) {
+  // ── ENDPOINT TEMPORANEAMENTE DISATTIVATO (spam) ──
+  // Il form contatti è stato rimosso dal sito. Per riattivare,
+  // rimuovere questo blocco return qui sotto.
+  return res.status(410).json({
+    error: 'Contact form disabled',
+    message: 'This endpoint is temporarily disabled. Please email afrowantedrecords@gmail.com directly.'
+  });
+  // ── FINE BLOCCO DISATTIVAZIONE ──
+
   // Rate limiting: max 5 richieste al minuto per IP
   const rl = rateLimit(req, { max: 5, windowMs: 60000 });
   Object.entries(rl.headers).forEach(([k,v]) => res.setHeader(k, v));
