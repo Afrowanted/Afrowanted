@@ -5429,21 +5429,32 @@ let _stripePaymentElement = null;
   const clientSecret = params.get('payment_intent_client_secret');
   if (!clientSecret) return;
 
-  if (!_stripe) _stripe = Stripe(STRIPE_PK);
-  const { paymentIntent } = await _stripe.retrievePaymentIntent(clientSecret);
+  try {
+    if (!_stripe) _stripe = Stripe(STRIPE_PK);
+    const { paymentIntent } = await _stripe.retrievePaymentIntent(clientSecret);
 
-  // Pulisce i parametri dall'URL per evitare ri-elaborazioni su refresh
-  const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
-  window.history.replaceState({}, document.title, cleanUrl);
+    // Pulisce i parametri dall'URL per evitare ri-elaborazioni su refresh
+    const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+    window.history.replaceState({}, document.title, cleanUrl);
 
-  if (!paymentIntent) return;
+    if (!paymentIntent) return;
 
-  if (paymentIntent.status === 'succeeded') {
-    await handleOrderComplete({ id: paymentIntent.id, payment_method: 'stripe' });
-  } else if (paymentIntent.status === 'processing') {
-    showToast(t('processing') || 'Pagamento in elaborazione...');
-  } else if (paymentIntent.status === 'requires_payment_method') {
-    showToast(t('payment_failed') || 'Pagamento non riuscito, riprova.', true);
+    if (paymentIntent.status === 'succeeded') {
+      // Dopo un redirect (Klarna, Amazon Pay, ecc.) i campi del form checkout
+      // non esistono più in pagina: l'ordine viene creato dal webhook
+      // server-side (/api/stripe-webhook), che è la fonte di verità.
+      // Qui ci limitiamo a confermare e pulire il carrello.
+      cart = [];
+      try { renderCart(); render(); } catch(e) {}
+      showToast(t('order_confirmed') || 'Pagamento confermato!');
+      alert('✓ Thank you!\n\nYour payment has been confirmed.\nOrder ID: ' + paymentIntent.id + '\n\nWe will contact you shortly with shipping details.');
+    } else if (paymentIntent.status === 'processing') {
+      showToast(t('processing') || 'Pagamento in elaborazione...');
+    } else if (paymentIntent.status === 'requires_payment_method') {
+      showToast(t('payment_failed') || 'Pagamento non riuscito, riprova.', true);
+    }
+  } catch (e) {
+    console.error('Stripe redirect return error:', e);
   }
 })();
 
@@ -5490,13 +5501,25 @@ async function handleStripePayment() {
     updateCheckoutShipping();
 
     // Crea PaymentIntent tramite Vercel Function
+    // Inviamo tutti i dati ordine/spedizione come metadata: servono al webhook
+    // server-side per creare l'ordine anche se il browser del cliente non
+    // completa il round-trip dopo un pagamento con redirect (Klarna, Amazon Pay, ecc.)
     const res = await fetch('/api/create-payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         amount: total,
         buyerEmail,
-        items: cart.map(r => ({ id: r.id, label: r.label, price: r.price }))
+        items: cart.map(r => ({ id: r.id, label: r.label, price: getDiscountedPrice(r) })),
+        buyerName:    document.getElementById('cfFullName').value.trim(),
+        buyerAddress: document.getElementById('cfAddress').value.trim(),
+        buyerCity:    document.getElementById('cfCity').value.trim(),
+        buyerZip:     document.getElementById('cfZip')?.value.trim() || '',
+        buyerCountry: buyerCountryStr || '',
+        buyerPhone:   document.getElementById('cfPhone').value.trim(),
+        shippingCost: shippingStr,
+        packagingCost: packagingStr,
+        packagingOptions: Object.entries(_selectedPackaging || {}).map(([name, price]) => ({ name, price: price * 100 }))
       })
     });
 
