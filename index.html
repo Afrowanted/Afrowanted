@@ -5422,6 +5422,30 @@ let _stripe = null;
 let _stripeElements = null;
 let _stripePaymentElement = null;
 
+// Gestisce il ritorno da metodi di pagamento con redirect (Amazon Pay, EPS, ecc.)
+(async function handleStripeRedirectReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const clientSecret = params.get('payment_intent_client_secret');
+  if (!clientSecret) return;
+
+  if (!_stripe) _stripe = Stripe(STRIPE_PK);
+  const { paymentIntent } = await _stripe.retrievePaymentIntent(clientSecret);
+
+  // Pulisce i parametri dall'URL per evitare ri-elaborazioni su refresh
+  const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+  window.history.replaceState({}, document.title, cleanUrl);
+
+  if (!paymentIntent) return;
+
+  if (paymentIntent.status === 'succeeded') {
+    await handleOrderComplete({ id: paymentIntent.id, payment_method: 'stripe' });
+  } else if (paymentIntent.status === 'processing') {
+    showToast(t('processing') || 'Pagamento in elaborazione...');
+  } else if (paymentIntent.status === 'requires_payment_method') {
+    showToast(t('payment_failed') || 'Pagamento non riuscito, riprova.', true);
+  }
+})();
+
 async function handleStripePayment() {
   // Valida form
   const fields = ['cfFullName','cfEmail','cfAddress','cfCity','cfCountry'];
@@ -5536,6 +5560,9 @@ async function confirmStripePayment() {
 
   const { error, paymentIntent } = await _stripe.confirmPayment({
     elements: _stripeElements,
+    confirmParams: {
+      return_url: window.location.origin + window.location.pathname
+    },
     redirect: 'if_required'
   });
 
